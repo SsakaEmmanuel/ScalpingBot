@@ -2,5 +2,5 @@
 // Never put a service_role/secret key or broker password here.
 window.SCALPINGBOT_CONFIG = {
   supabaseUrl: "https://aejoqsckzceufdbwhegl.supabase.co",
-  supabasePublishableKey: "PASTE_PUBLISHABLE_KEY_HERE"
+  supabasePublishableKey: "sb_publishable_fRwTDwMSPX15eA5DFLkyYA_6avuFX3z"
 };
