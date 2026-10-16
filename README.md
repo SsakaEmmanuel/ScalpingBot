@@ -1,0 +1,2 @@
+# ScalpingBot
+Trade bot
