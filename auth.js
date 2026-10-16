@@ -26,6 +26,7 @@
       }
     );
   }
+  window.SCALPINGBOT_SUPABASE = client;
 
   function openAuth(nextMode) {
     mode = nextMode;
