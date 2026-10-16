@@ -1,1 +1,9 @@
-const dialog=document.getElementById('infoDialog');const title=document.getElementById('dialogTitle');const body=document.getElementById('dialogBody');function notice(t,m){title.textContent=t;body.textContent=m;if(dialog.showModal)dialog.showModal();else alert(t+'\\n\\n'+m)}document.getElementById('loginOpen').addEventListener('click',()=>notice('Sign-in is not connected yet','This is the public website prototype. We will add Supabase authentication after the separate ScalpingBot project and security policies are configured.'));document.getElementById('requestConnect').addEventListener('click',()=>notice('MT5 connection is not configured','Next we will create a secure authenticated command bridge. No terminal is connected, and trading actions are locked.'));document.getElementById('dialogOk').addEventListener('click',()=>dialog.close());for(const id of ['symbol','timeframe','risk','daily'])document.getElementById(id).addEventListener('change',()=>notice('Draft setting changed','This is a local preview only. It has not been saved and cannot change an MT5 account.'));
+// UI-only interactions. No trading command is sent from this file.
+document.getElementById("requestConnect").addEventListener("click", () => {
+  alert("MT5 bridge is not configured. Trading remains disabled until the authenticated Windows bridge is built and tested.");
+});
+for (const id of ["symbol", "timeframe", "risk", "daily"]) {
+  document.getElementById(id).addEventListener("change", () => {
+    alert("This is a local draft setting only. It is not saved to Supabase and cannot change an MT5 account.");
+  });
+}
