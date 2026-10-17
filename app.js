@@ -57,20 +57,37 @@ if (sidebar && main) {
     <div class="panel" id="liveMarketPanel">
       <h3>Live market data <span class="tag">External feed</span></h3>
       <p>Indicative third-party prices; not broker quotes and may be delayed.</p>
-      <label>Market symbol
-        <select id="marketSymbol">
-          <option value="EURUSD">EUR/USD</option>
-          <option value="GBPUSD">GBP/USD</option>
-          <option value="USDJPY">USD/JPY</option>
-          <option value="XAUUSD">Gold (XAU/USD proxy)</option>
-        </select>
-      </label>
+      <div class="market-controls" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+        <label>Market symbol
+          <select id="marketSymbol">
+            <option value="EURUSD">EUR/USD</option>
+            <option value="GBPUSD">GBP/USD</option>
+            <option value="USDJPY">USD/JPY</option>
+            <option value="XAUUSD">Gold (XAU/USD proxy)</option>
+          </select>
+        </label>
+        <label>Chart timeframe
+          <select id="marketTimeframe">
+            <option value="1m">M1 · 1 minute</option>
+            <option value="5m" selected>M5 · 5 minutes</option>
+            <option value="15m">M15 · 15 minutes</option>
+            <option value="30m">M30 · 30 minutes</option>
+            <option value="60m">H1 · 1 hour</option>
+          </select>
+        </label>
+      </div>
       <div class="market-quote"><small id="marketSymbolLabel">EUR/USD</small><h2 id="marketPrice">Loading…</h2><p id="marketState" class="notice" role="status">Connecting to market-data service…</p></div>
       <div class="chart-switch" role="group" aria-label="Chart type" style="display:flex;gap:8px;margin:12px 0">
         <button class="btn primary" id="lineChartBtn" type="button" aria-pressed="true">Line</button>
         <button class="btn outline" id="candleChartBtn" type="button" aria-pressed="false">Candlestick</button>
       </div>
-      <svg id="marketChart" viewBox="0 0 600 180" role="img" aria-label="Recent indicative market prices" style="width:100%;height:auto;min-height:120px"></svg>
+      <div class="chart-zoom" role="group" aria-label="Chart zoom controls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0">
+        <button class="btn outline" id="zoomOut" type="button" aria-label="Zoom out">−</button>
+        <button class="btn outline" id="zoomIn" type="button" aria-label="Zoom in">+</button>
+        <button class="btn outline" id="zoomReset" type="button">Reset zoom</button>
+        <small id="zoomLabel">60 candles</small>
+      </div>
+      <svg id="marketChart" viewBox="0 0 600 180" role="img" aria-label="Recent indicative market prices" style="width:100%;height:auto;min-height:120px;touch-action:pan-y"></svg>
       <p><small id="marketUpdated">Waiting for first update…</small></p>
       <button class="btn outline" id="refreshMarket" type="button">Refresh prices</button>
     </div>
@@ -111,6 +128,7 @@ if (sidebar && main) {
   let marketRefreshTimer = null;
   let marketChartType = "line";
   let lastMarketCandles = [];
+  let visibleCandleCount = 30;
 
   function drawMarketChart(candles) {
     const chart = document.getElementById("marketChart");
@@ -124,7 +142,9 @@ if (sidebar && main) {
       return;
     }
 
-    const visible = rows.slice(-60);
+    const visible = rows.slice(-visibleCandleCount);
+    const zoomLabel = document.getElementById("zoomLabel");
+    if (zoomLabel) zoomLabel.textContent = visible.length + " candles";
     const allValues = visible.flatMap(c => [Number(c.high), Number(c.low)]);
     const min = Math.min(...allValues);
     const max = Math.max(...allValues);
@@ -164,11 +184,13 @@ if (sidebar && main) {
     const updatedEl = document.getElementById("marketUpdated");
     const chart = document.getElementById("marketChart");
     const symbol = symbolControl ? symbolControl.value : "EURUSD";
+    const timeframeControl = document.getElementById("marketTimeframe");
+    const timeframe = timeframeControl ? timeframeControl.value : "5m";
     const labels = { EURUSD: "EUR/USD", GBPUSD: "GBP/USD", USDJPY: "USD/JPY", XAUUSD: "Gold (XAU/USD proxy)" };
     document.getElementById("marketSymbolLabel").textContent = labels[symbol] || symbol;
     statusEl.textContent = "Fetching latest available indicative prices…";
     try {
-      const response = await fetch("https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/market-data?symbol=" + encodeURIComponent(symbol), { cache: "no-store" });
+      const response = await fetch("https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/market-data?symbol=" + encodeURIComponent(symbol) + "&timeframe=" + encodeURIComponent(timeframe), { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Market data request failed.");
       if (data.price == null) throw new Error("The provider did not return a current price.");
@@ -374,7 +396,20 @@ if (sidebar && main) {
     } else if (name === "Overview") {
       loadSavedConfigSummary(name);
       document.getElementById("marketSymbol").addEventListener("change", loadLiveMarketData);
+      document.getElementById("marketTimeframe").addEventListener("change", loadLiveMarketData);
       document.getElementById("refreshMarket").addEventListener("click", loadLiveMarketData);
+      document.getElementById("zoomIn").addEventListener("click", () => {
+        visibleCandleCount = Math.max(10, visibleCandleCount - 5);
+        drawMarketChart(lastMarketCandles);
+      });
+      document.getElementById("zoomOut").addEventListener("click", () => {
+        visibleCandleCount = Math.min(60, visibleCandleCount + 5);
+        drawMarketChart(lastMarketCandles);
+      });
+      document.getElementById("zoomReset").addEventListener("click", () => {
+        visibleCandleCount = 30;
+        drawMarketChart(lastMarketCandles);
+      });
       document.getElementById("lineChartBtn").addEventListener("click", () => {
         marketChartType = "line";
         document.getElementById("lineChartBtn").className = "btn primary";
