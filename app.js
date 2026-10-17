@@ -133,7 +133,7 @@ if (sidebar && main) {
   `;
 
   const panels = {
-    "Overview": () => originalMainHTML + marketPanelHTML() + `
+    "Overview": () => originalMainHTML + marketPanelHTML() + demoPanelHTML() + `
       <div class="panel" id="overviewSavedConfig">
         <h3>Saved configuration</h3>
         <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
