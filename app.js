@@ -6,6 +6,7 @@ const tabNames = [
   "Strategy",
   "Risk controls",
   "Trade history",
+  "Account status",
   "Settings"
 ];
 
@@ -14,7 +15,7 @@ const main = document.querySelector("#privateDashboard .dash-main");
 const supabaseClient = () => window.SCALPINGBOT_SUPABASE || null;
 
 if (sidebar && main) {
-  const navItems = [...sidebar.querySelectorAll("b")].slice(0, 5);
+  const navItems = [...sidebar.querySelectorAll("b")].slice(0, 6);
   const originalMainHTML = main.innerHTML;
 
   const settingsHTML = () => `
