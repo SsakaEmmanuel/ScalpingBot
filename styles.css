@@ -21,3 +21,44 @@ body.workspace-page .dashboard-section{padding-top:28px;min-height:calc(100vh - 
 .workspace-links a{font-size:13px;color:var(--muted)}
 .workspace-links a:hover{color:var(--green)}
 @media(max-width:650px){.workspace-links{gap:9px}.workspace-links a{font-size:11px}body.workspace-page .dashboard-section{padding-top:18px}}
+
+
+/* Keep primary workspace navigation visible and touch-friendly on phones. */
+@media(max-width:900px){
+  .topbar nav.workspace-links{
+    display:flex!important;
+    flex:1 1 100%;
+    order:3;
+    width:100%;
+    justify-content:space-between;
+    gap:6px;
+    padding:8px 0 2px;
+    overflow-x:auto;
+    white-space:nowrap;
+    scrollbar-width:thin;
+  }
+  .topbar{
+    flex-wrap:wrap;
+    row-gap:5px;
+  }
+  .workspace-links a{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:38px;
+    padding:7px 10px;
+    border:1px solid var(--border);
+    border-radius:9px;
+    background:#111a2d;
+    flex:1 0 auto;
+  }
+  .workspace-links a[aria-current="page"]{
+    color:var(--green);
+    border-color:#42d6ad75;
+    background:#42d6ad12;
+  }
+}
+@media(max-width:420px){
+  .topbar nav.workspace-links{gap:5px}
+  .workspace-links a{font-size:10px;padding:7px 8px}
+}
