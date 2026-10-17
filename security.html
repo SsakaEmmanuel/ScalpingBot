@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1020"><title>ScalpingBot — Security & Safety</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="security-details-page">
+<header class="topbar">
+  <a class="brand" href="dashboard.html"><span class="brand-mark">S</span><span>Scalping<span class="accent">Bot</span></span></a>
+  <nav class="workspace-links"><a href="dashboard.html">Overview</a><a href="market.html">Market Analysis</a><a href="demo.html">Demo Trading</a></nav>
+  <a class="btn outline" href="dashboard.html">← Back to dashboard</a>
+</header>
+<main class="section">
+  <div class="eyebrow">SCALPINGBOT SAFETY CENTRE</div>
+  <h1>Security and <span class="gradient">safe operation</span></h1>
+  <p class="lead">Understand how account access is handled and why automated trading remains disabled until the required connection is built and tested.</p>
+  <section class="section security" id="security"><div><div class="eyebrow">SECURITY BY DESIGN</div><h2>Private dashboard.<br><span class="gradient">Protected commands.</span></h2><p>Supabase handles account authentication. Database policies restrict access to each user's records. Trading commands remain disabled until a trusted MT5 bridge is built.</p><ul><li>Supabase Auth sign-in and sign-up</li><li>RLS protects each user's records</li><li>Privileged secrets stay off the frontend</li><li>Demo-only mode until testing is complete</li></ul></div>
+<div class="panel security-card"><div class="lock">⌑</div><h3>Safe by default</h3><p>This prototype cannot execute trades.</p><label>Supabase configuration <strong class="amber-text" id="configStatus">Checking…</strong></label><label>MT5 execution <strong class="amber-text">Locked</strong></label></div></section>
+  <div class="panel" style="margin-top:22px">
+    <h3>Current prototype limits</h3>
+    <p>ScalpingBot is still a prototype. Market feeds may be unavailable or delayed, and this page does not verify broker connectivity. Do not treat the interface as a live trading terminal.</p>
+    <a class="btn primary" href="dashboard.html">Return to Overview</a>
+  </div>
+</main>
+<footer><div class="footer-meta"><a class="brand" href="dashboard.html"><span class="brand-mark">S</span><span>Scalping<span class="accent">Bot</span></span></a><p>Educational software prototype. Trading involves risk. No profits are guaranteed.</p><small>© 2026 ScalpingBot · Demo-first</small></div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script>
+const status=document.getElementById("configStatus");
+if(status) status.textContent=(window.SCALPINGBOT_CONFIG && window.SCALPINGBOT_CONFIG.url)?"Values entered":"Not configured";
+</script>
+</body></html>
