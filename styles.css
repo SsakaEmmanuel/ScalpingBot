@@ -85,3 +85,14 @@ footer .security-card{margin:0}
   footer .security h2{font-size:28px}
   .footer-meta{align-items:flex-start;flex-direction:column}
 }
+
+
+/* The footer security block is a clear link to the full safety page. */
+a.security-footer-link{display:block;color:inherit;border-radius:14px;outline-offset:5px}
+a.security-footer-link:hover .security-card{border-color:var(--green);transform:translateY(-2px)}
+a.security-footer-link:hover .eyebrow{color:#8cb2ff}
+a.security-footer-link:focus-visible{outline:2px solid var(--green)}
+.security-details-page .security{margin-top:28px;padding:28px;background:#10182a;border:1px solid var(--border);border-radius:16px}
+.security-details-page .security h2{font-size:clamp(28px,4vw,42px)}
+.security-details-page .workspace-links{display:flex}
+@media(max-width:900px){.security-details-page .topbar nav.workspace-links{display:flex!important}}
