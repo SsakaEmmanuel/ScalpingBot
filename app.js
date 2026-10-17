@@ -53,6 +53,27 @@ if (sidebar && main) {
     </div>
   `;
 
+  const demoPanelHTML = () => `
+    <div class="panel" id="demoEnginePanel">
+      <h3>Strategy signals & demo engine <span class="tag">SIMULATION ONLY</span></h3>
+      <p>EMA 9/21 trend + RSI 14 filter. Signals are educational, not guarantees. Simulated results use candle data and simplified costs.</p>
+      <div class="demo-stats">
+        <div><small>Signal</small><strong id="demoSignal">Waiting for candles</strong></div>
+        <div><small>Demo balance</small><strong id="demoBalance">$10,000.00</strong></div>
+        <div><small>Closed trades</small><strong id="demoClosedCount">0</strong></div>
+        <div><small>Win rate</small><strong id="demoWinRate">—</strong></div>
+      </div>
+      <p id="demoReason" class="notice" role="status">Waiting for market candles to explain the current signal.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+        <button class="btn primary" id="demoStart" type="button">Start demo simulation</button>
+        <button class="btn outline" id="demoPause" type="button">Pause simulation</button>
+        <button class="btn outline" id="demoReset" type="button">Reset demo results</button>
+      </div>
+      <p id="demoStatus" class="notice" role="status">Simulation is paused. No real orders can be sent.</p>
+      <div id="demoOpenTrade" class="empty">No open simulated trade.</div>
+    </div>
+  `;
+
   const marketPanelHTML = () => `
     <div class="panel" id="liveMarketPanel">
       <h3>Live market data <span class="tag">External feed</span></h3>
@@ -125,10 +146,132 @@ if (sidebar && main) {
       <div class="panel"><h3>Risk controls</h3>
       <p>Your saved risk preferences. They are not enforced by an MT5 bridge yet, and trading remains disabled.</p></div>`,
     "Trade history": () => `
-      <div class="panel"><h3>Trade history</h3>
-      <p class="empty">No trading data available. MT5 is not connected.</p></div>`,
+      <div class="panel"><h3>Demo trade history <span class="tag">SIMULATED</span></h3>
+      <p>Locally saved simulated trades only. These are not broker orders.</p>
+      <div id="demoHistoryRows" class="empty">Loading demo history…</div>
+      <button class="btn outline" id="demoHistoryRefresh" type="button">Refresh history</button></div>`,
     "Settings": settingsHTML
   };
+
+
+  let demoStorageKey = "scalpingbot-demo-v1-guest";
+  let demoState = { balance: 10000, initialBalance: 10000, enabled: false, trades: [], openTrade: null, lastProcessedCandle: null, dayStartBalance: 10000, dayKey: new Date().toISOString().slice(0,10), pausedReason: "" };
+  let demoStateLoaded = false;
+  let latestSignal = { side: "WAIT", reason: "Waiting for market candles." };
+
+  async function loadDemoState() {
+    try {
+      const client = supabaseClient();
+      const result = client ? await client.auth.getUser() : null;
+      const user = result && result.data ? result.data.user : null;
+      demoStorageKey = "scalpingbot-demo-v1-" + (user ? user.id : "guest");
+      const saved = localStorage.getItem(demoStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.trades) && Number.isFinite(Number(parsed.balance))) demoState = { ...demoState, ...parsed, enabled: false };
+      }
+    } catch (error) { console.warn("Demo state could not be loaded:", error); }
+    demoStateLoaded = true;
+    renderDemoEngine();
+  }
+
+  function saveDemoState() {
+    try { localStorage.setItem(demoStorageKey, JSON.stringify({ ...demoState, enabled: false })); }
+    catch (error) {
+      const status = document.getElementById("demoStatus");
+      if (status) status.textContent = "Browser storage unavailable; results may not persist after closing this page.";
+    }
+  }
+
+  function ema(values, period) {
+    if (values.length < period) return null;
+    const k = 2 / (period + 1);
+    let value = values.slice(0, period).reduce((a,b)=>a+b,0) / period;
+    for (let i = period; i < values.length; i++) value = values[i] * k + value * (1-k);
+    return value;
+  }
+
+  function calculateSignal(candles) {
+    const closes = (candles || []).map(c => Number(c.close)).filter(Number.isFinite);
+    if (closes.length < 30) return { side: "WAIT", reason: "Need at least 30 valid candles before EMA 9/21 and RSI 14 analysis." };
+    const fast = ema(closes.slice(-40), 9), slow = ema(closes.slice(-60), 21);
+    const priorFast = ema(closes.slice(-41,-1), 9), priorSlow = ema(closes.slice(-61,-1), 21);
+    const recent = closes.slice(-15);
+    const changes = recent.slice(1).map((v,i)=>v-recent[i]);
+    const avgGain = changes.reduce((a,v)=>a+Math.max(0,v),0)/14;
+    const avgLoss = changes.reduce((a,v)=>a+Math.max(0,-v),0)/14;
+    const rsi = avgLoss === 0 ? 100 : 100 - 100/(1 + avgGain/avgLoss);
+    if (fast > slow && priorFast <= priorSlow && rsi >= 50 && rsi <= 70)
+      return { side:"BUY", reason:"EMA 9 crossed above EMA 21; RSI is " + rsi.toFixed(1) + " (within the 50–70 filter)." };
+    if (fast < slow && priorFast >= priorSlow && rsi >= 30 && rsi <= 50)
+      return { side:"SELL", reason:"EMA 9 crossed below EMA 21; RSI is " + rsi.toFixed(1) + " (within the 30–50 filter)." };
+    return { side:"NO TRADE", reason:"No fresh EMA crossover with confirming RSI. EMA 9 is " + (fast > slow ? "above" : "below") + " EMA 21; RSI " + rsi.toFixed(1) + "." };
+  }
+
+  function renderDemoEngine() {
+    const signal = document.getElementById("demoSignal");
+    if (!signal) return;
+    signal.textContent = latestSignal.side;
+    signal.style.color = latestSignal.side === "BUY" ? "#42d6ad" : latestSignal.side === "SELL" ? "#ff7185" : "var(--text)";
+    document.getElementById("demoReason").textContent = latestSignal.reason;
+    document.getElementById("demoBalance").textContent = "$" + Number(demoState.balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    const closed = demoState.trades.filter(t=>t.status==="CLOSED");
+    document.getElementById("demoClosedCount").textContent = String(closed.length);
+    const wins = closed.filter(t=>t.pnl>0).length;
+    document.getElementById("demoWinRate").textContent = closed.length ? (wins/closed.length*100).toFixed(1)+"%" : "—";
+    document.getElementById("demoStatus").textContent = demoState.enabled ? "Simulation RUNNING · local browser only · real trading disabled." : "Simulation PAUSED · no real orders can be sent.";
+    document.getElementById("demoOpenTrade").textContent = demoState.openTrade
+      ? "Open simulated " + demoState.openTrade.side + " " + demoState.openTrade.symbol + " at " + Number(demoState.openTrade.entry).toPrecision(7) + " · stop " + Number(demoState.openTrade.stop).toPrecision(7) + " · target " + Number(demoState.openTrade.target).toPrecision(7)
+      : "No open simulated trade.";
+  }
+
+  function renderDemoHistory() {
+    const target = document.getElementById("demoHistoryRows");
+    if (!target) return;
+    const rows = demoState.trades.slice().reverse().slice(0,50);
+    if (!rows.length) { target.textContent = "No simulated trades yet. Start the demo engine on Overview."; return; }
+    target.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th align="left">Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>P/L</th><th>Status</th></tr></thead><tbody>' +
+      rows.map(t=>'<tr><td>'+escapeHTML(new Date(t.openedAt).toLocaleString())+'</td><td>'+escapeHTML(t.symbol)+'</td><td>'+escapeHTML(t.side)+'</td><td>'+escapeHTML(Number(t.entry).toPrecision(7))+'</td><td>'+(t.exit==null?"—":escapeHTML(Number(t.exit).toPrecision(7)))+'</td><td>'+(t.pnl==null?"—":(t.pnl>=0?"+":"")+"$"+Number(t.pnl).toFixed(2))+'</td><td>'+escapeHTML(t.status)+'</td></tr>').join("")+
+      '</tbody></table></div>';
+  }
+
+  function processDemoCandles(candles, symbol) {
+    if (!demoStateLoaded || !candles || candles.length < 30) return;
+    const last = candles[candles.length-1];
+    const candleId = String(last.time || last.timestamp || last.date || "") + "|" + String(last.close);
+    latestSignal = calculateSignal(candles);
+    const riskPercent = Number(document.getElementById("settingsRisk")?.value || 0.5);
+    const dailyLimit = Number(document.getElementById("settingsDaily")?.value || 2);
+    const today = new Date().toISOString().slice(0,10);
+    if (demoState.dayKey !== today) { demoState.dayKey=today; demoState.dayStartBalance=demoState.balance; }
+    const dailyLoss = demoState.dayStartBalance > 0 ? (demoState.dayStartBalance-demoState.balance)/demoState.dayStartBalance*100 : 100;
+    if (dailyLoss >= dailyLimit) { demoState.enabled=false; demoState.pausedReason="Daily loss guard reached."; }
+    if (demoState.openTrade) {
+      const t=demoState.openTrade, high=Number(last.high), low=Number(last.low);
+      const stopHit=t.side==="BUY" ? low<=t.stop : high>=t.stop;
+      const targetHit=t.side==="BUY" ? high>=t.target : low<=t.target;
+      if (stopHit || targetHit) {
+        // Conservative rule: if stop and target occur in the same candle, count the stop first.
+        const exit=stopHit?t.stop:t.target, pnl=t.riskCash*(stopHit?-1:1.5);
+        demoState.balance=Math.max(0,demoState.balance+pnl);
+        demoState.trades.push({...t,status:"CLOSED",exit,pnl,closedAt:new Date().toISOString(),closeReason:stopHit?"Stop-loss":"Take-profit"});
+        demoState.openTrade=null;
+      }
+    }
+    if (demoState.enabled && candleId!==demoState.lastProcessedCandle && !demoState.openTrade && (latestSignal.side==="BUY" || latestSignal.side==="SELL")) {
+      const entry=Number(last.close);
+      const ranges=candles.slice(-15).map(c=>Number(c.high)-Number(c.low)).filter(v=>Number.isFinite(v)&&v>0);
+      const stopDistance=ranges.reduce((a,b)=>a+b,0)/Math.max(1,ranges.length);
+      const riskCash=demoState.balance*riskPercent/100;
+      if (stopDistance>0 && riskCash>0) {
+        const direction=latestSignal.side==="BUY"?1:-1;
+        const trade={id:String(Date.now()),symbol,side:latestSignal.side,entry,stop:entry-direction*stopDistance,target:entry+direction*stopDistance*1.5,riskCash,openedAt:new Date().toISOString(),status:"OPEN",reason:latestSignal.reason};
+        demoState.openTrade=trade; demoState.trades.push(trade);
+      }
+    }
+    if (candleId!==demoState.lastProcessedCandle) demoState.lastProcessedCandle=candleId;
+    saveDemoState(); renderDemoEngine();
+  }
 
   let marketRefreshTimer = null;
   let marketChartType = "line";
@@ -222,6 +365,7 @@ if (sidebar && main) {
       updatedEl.textContent = "Fetched " + marketLastSuccessAt.toLocaleTimeString() + (data.exchangeTimezoneName ? " · Provider timezone: " + data.exchangeTimezoneName : "");
       lastMarketCandles = data.candles || [];
       drawMarketChart(lastMarketCandles);
+      processDemoCandles(lastMarketCandles, symbol);
     } catch (error) {
       const reason = error.name === "AbortError" ? "Request timed out" : error.message;
       statusEl.textContent = "Live feed unavailable: " + reason + ". Retry automatically or tap Refresh prices.";
@@ -453,10 +597,21 @@ if (sidebar && main) {
         document.getElementById("candleChartBtn").setAttribute("aria-pressed", "true");
         drawMarketChart(lastMarketCandles);
       });
+      document.getElementById("demoStart").addEventListener("click", () => { demoState.enabled=true; demoState.pausedReason=""; saveDemoState(); renderDemoEngine(); });
+      document.getElementById("demoPause").addEventListener("click", () => { demoState.enabled=false; saveDemoState(); renderDemoEngine(); });
+      document.getElementById("demoReset").addEventListener("click", () => {
+        if (!confirm("Reset your local simulated balance and demo trade history?")) return;
+        demoState={balance:10000,initialBalance:10000,enabled:false,trades:[],openTrade:null,lastProcessedCandle:null,dayStartBalance:10000,dayKey:new Date().toISOString().slice(0,10),pausedReason:""};
+        saveDemoState(); renderDemoEngine();
+      });
+      loadDemoState();
       loadLiveMarketData();
       marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
     } else if (name === "Strategy" || name === "Risk controls") {
       loadSavedConfigSummary(name);
+    } else if (name === "Trade history") {
+      renderDemoHistory();
+      document.getElementById("demoHistoryRefresh").addEventListener("click", renderDemoHistory);
     } else if (name === "Account status") {
       refreshAccountStatus();
       document.getElementById("refreshAccountStatus").addEventListener("click", refreshAccountStatus);
