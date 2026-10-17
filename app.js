@@ -360,6 +360,9 @@ if (sidebar && main) {
       }
     });
   });
+
+  // Render the default Overview with the market panel on first page load.
+  if (navItems[0]) openTab("Overview", navItems[0]);
 }
 
 document.addEventListener("click", event => {
