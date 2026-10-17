@@ -52,12 +52,26 @@ if (sidebar && main) {
     </div>
   `;
 
+  const accountPanelHTML = () => `
+    <div class="panel">
+      <h3>Account and connection status</h3>
+      <p>Account identity and service connectivity for your current session.</p>
+      <p id="accountEmail">Checking signed-in account…</p>
+      <p id="accountAuthState" class="notice" role="status">Checking authentication…</p>
+      <p><strong>Supabase:</strong> <span id="supabaseState">Checking…</span></p>
+      <p><strong>MT5 bridge:</strong> <span class="amber-text">Not connected</span></p>
+      <p><strong>Trade execution:</strong> <span class="amber-text">Locked</span></p>
+      <button class="btn outline" id="refreshAccountStatus" type="button">Refresh status</button>
+    </div>
+  `;
+
   const panels = {
     "Overview": () => originalMainHTML + `
       <div class="panel" id="overviewSavedConfig">
         <h3>Saved configuration</h3>
         <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
       </div>`,
+    "Account status": accountPanelHTML,
     "Strategy": () => `
       <div class="panel"><h3>Strategy configuration</h3>
       <p>Saved strategy preferences from your Supabase account. These are configuration only; no signals or trades are executed.</p></div>`,
@@ -69,6 +83,37 @@ if (sidebar && main) {
       <p class="empty">No trading data available. MT5 is not connected.</p></div>`,
     "Settings": settingsHTML
   };
+
+  async function refreshAccountStatus() {
+    const email = document.getElementById("accountEmail");
+    const authState = document.getElementById("accountAuthState");
+    const supabaseState = document.getElementById("supabaseState");
+    const client = supabaseClient();
+    if (!email || !authState || !supabaseState) return;
+
+    supabaseState.textContent = client ? "Client initialized" : "Not configured";
+    if (!client) {
+      email.textContent = "Account: unavailable";
+      authState.textContent = "Supabase client is not initialized.";
+      return;
+    }
+
+    authState.textContent = "Checking session…";
+    try {
+      const { data, error } = await client.auth.getUser();
+      if (error) throw error;
+      if (data.user) {
+        email.textContent = "Signed in as " + data.user.email;
+        authState.textContent = "Authenticated";
+      } else {
+        email.textContent = "No signed-in account";
+        authState.textContent = "Sign-in required";
+      }
+    } catch (error) {
+      email.textContent = "Could not read account";
+      authState.textContent = "Status check failed: " + error.message;
+    }
+  }
 
   async function loadSavedConfigSummary(name) {
     const client = supabaseClient();
@@ -224,6 +269,9 @@ if (sidebar && main) {
       loadSettings();
     } else if (name === "Overview" || name === "Strategy" || name === "Risk controls") {
       loadSavedConfigSummary(name);
+    } else if (name === "Account status") {
+      refreshAccountStatus();
+      document.getElementById("refreshAccountStatus").addEventListener("click", refreshAccountStatus);
     }
   }
 
