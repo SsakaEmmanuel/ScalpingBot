@@ -57,6 +57,11 @@ if (sidebar && main) {
     <div class="panel" id="liveMarketPanel">
       <h3>Live market data <span class="tag">External feed</span></h3>
       <p>Indicative third-party prices; not broker quotes and may be delayed.</p>
+      <div class="feed-status" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0">
+        <span id="feedIndicator" aria-hidden="true" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e0a34b"></span>
+        <strong id="feedConnectionState">Connecting to external feed…</strong>
+        <small id="feedAutoState">Auto-refresh: every 30 seconds</small>
+      </div>
       <div class="market-controls" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
         <label>Market symbol
           <select id="marketSymbol">
@@ -175,6 +180,9 @@ if (sidebar && main) {
     }
   }
 
+  let marketRequestInProgress = false;
+  let marketLastSuccessAt = null;
+
   async function loadLiveMarketData() {
     const panel = document.getElementById("liveMarketPanel");
     if (!panel) return;
@@ -188,21 +196,40 @@ if (sidebar && main) {
     const timeframe = timeframeControl ? timeframeControl.value : "5m";
     const labels = { EURUSD: "EUR/USD", GBPUSD: "GBP/USD", USDJPY: "USD/JPY", XAUUSD: "Gold (XAU/USD proxy)" };
     document.getElementById("marketSymbolLabel").textContent = labels[symbol] || symbol;
+    const feedState = document.getElementById("feedConnectionState");
+    const feedIndicator = document.getElementById("feedIndicator");
+    const autoState = document.getElementById("feedAutoState");
+    if (marketRequestInProgress) return;
+    marketRequestInProgress = true;
     statusEl.textContent = "Fetching latest available indicative prices…";
+    feedState.textContent = "Updating external feed…";
+    feedIndicator.style.background = "#e0a34b";
+    autoState.textContent = "Auto-refresh: every 30 seconds";
     try {
-      const response = await fetch("https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/market-data?symbol=" + encodeURIComponent(symbol) + "&timeframe=" + encodeURIComponent(timeframe), { cache: "no-store" });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const response = await fetch("https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/market-data?symbol=" + encodeURIComponent(symbol) + "&timeframe=" + encodeURIComponent(timeframe), { cache: "no-store", signal: controller.signal });
+      clearTimeout(timeoutId);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Market data request failed.");
       if (data.price == null) throw new Error("The provider did not return a current price.");
       const decimals = symbol === "USDJPY" ? 3 : symbol === "XAUUSD" ? 2 : 5;
       priceEl.textContent = Number(data.price).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      marketLastSuccessAt = new Date();
       statusEl.textContent = "Feed: " + data.provider + " · " + (data.marketState || "market status unavailable") + ". Indicative only.";
-      updatedEl.textContent = "Fetched " + new Date(data.fetchedAt).toLocaleTimeString() + (data.exchangeTimezoneName ? " · Provider timezone: " + data.exchangeTimezoneName : "");
+      feedState.textContent = "External feed connected · updated " + marketLastSuccessAt.toLocaleTimeString();
+      feedIndicator.style.background = "#42d6ad";
+      updatedEl.textContent = "Fetched " + marketLastSuccessAt.toLocaleTimeString() + (data.exchangeTimezoneName ? " · Provider timezone: " + data.exchangeTimezoneName : "");
       lastMarketCandles = data.candles || [];
       drawMarketChart(lastMarketCandles);
     } catch (error) {
-      statusEl.textContent = "Live feed unavailable: " + error.message + " You can retry.";
-      updatedEl.textContent = "No successful update yet.";
+      const reason = error.name === "AbortError" ? "Request timed out" : error.message;
+      statusEl.textContent = "Live feed unavailable: " + reason + ". Retry automatically or tap Refresh prices.";
+      feedState.textContent = marketLastSuccessAt ? "Feed reconnecting · last successful update " + marketLastSuccessAt.toLocaleTimeString() : "External feed disconnected";
+      feedIndicator.style.background = "#ff7185";
+      updatedEl.textContent = marketLastSuccessAt ? "Last successful update: " + marketLastSuccessAt.toLocaleString() : "No successful update yet.";
+    } finally {
+      marketRequestInProgress = false;
     }
   }
 
