@@ -53,6 +53,25 @@ if (sidebar && main) {
     </div>
   `;
 
+  const marketPanelHTML = () => `
+    <div class="panel" id="liveMarketPanel">
+      <h3>Live market data <span class="tag">External feed</span></h3>
+      <p>Indicative third-party prices; not broker quotes and may be delayed.</p>
+      <label>Market symbol
+        <select id="marketSymbol">
+          <option value="EURUSD">EUR/USD</option>
+          <option value="GBPUSD">GBP/USD</option>
+          <option value="USDJPY">USD/JPY</option>
+          <option value="XAUUSD">Gold (XAU/USD proxy)</option>
+        </select>
+      </label>
+      <div class="market-quote"><small id="marketSymbolLabel">EUR/USD</small><h2 id="marketPrice">Loading…</h2><p id="marketState" class="notice" role="status">Connecting to market-data service…</p></div>
+      <svg id="marketChart" viewBox="0 0 600 180" role="img" aria-label="Recent indicative market prices" style="width:100%;height:auto;min-height:120px"></svg>
+      <p><small id="marketUpdated">Waiting for first update…</small></p>
+      <button class="btn outline" id="refreshMarket" type="button">Refresh prices</button>
+    </div>
+  `;
+
   const accountPanelHTML = () => `
     <div class="panel">
       <h3>Account and connection status</h3>
@@ -67,7 +86,7 @@ if (sidebar && main) {
   `;
 
   const panels = {
-    "Overview": () => originalMainHTML + `
+    "Overview": () => originalMainHTML + marketPanelHTML() + `
       <div class="panel" id="overviewSavedConfig">
         <h3>Saved configuration</h3>
         <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
@@ -84,6 +103,48 @@ if (sidebar && main) {
       <p class="empty">No trading data available. MT5 is not connected.</p></div>`,
     "Settings": settingsHTML
   };
+
+  let marketRefreshTimer = null;
+
+  async function loadLiveMarketData() {
+    const panel = document.getElementById("liveMarketPanel");
+    if (!panel) return;
+    const symbolControl = document.getElementById("marketSymbol");
+    const priceEl = document.getElementById("marketPrice");
+    const statusEl = document.getElementById("marketState");
+    const updatedEl = document.getElementById("marketUpdated");
+    const chart = document.getElementById("marketChart");
+    const symbol = symbolControl ? symbolControl.value : "EURUSD";
+    const labels = { EURUSD: "EUR/USD", GBPUSD: "GBP/USD", USDJPY: "USD/JPY", XAUUSD: "Gold (XAU/USD proxy)" };
+    document.getElementById("marketSymbolLabel").textContent = labels[symbol] || symbol;
+    statusEl.textContent = "Fetching latest available indicative prices…";
+    try {
+      const response = await fetch("https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/market-data?symbol=" + encodeURIComponent(symbol), { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Market data request failed.");
+      if (data.price == null) throw new Error("The provider did not return a current price.");
+      const decimals = symbol === "USDJPY" ? 3 : symbol === "XAUUSD" ? 2 : 5;
+      priceEl.textContent = Number(data.price).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      statusEl.textContent = "Feed: " + data.provider + " · " + (data.marketState || "market status unavailable") + ". Indicative only.";
+      updatedEl.textContent = "Fetched " + new Date(data.fetchedAt).toLocaleTimeString() + (data.exchangeTimezoneName ? " · Provider timezone: " + data.exchangeTimezoneName : "");
+      const closes = (data.candles || []).map(c => Number(c.close)).filter(Number.isFinite);
+      if (closes.length > 1) {
+        const min = Math.min(...closes), max = Math.max(...closes);
+        const spread = max - min || 1;
+        const points = closes.map((value, index) => {
+          const x = 8 + index * 584 / (closes.length - 1);
+          const y = 160 - ((value - min) / spread) * 140;
+          return x.toFixed(1) + "," + y.toFixed(1);
+        }).join(" ");
+        chart.innerHTML = '<path d="M8 20H592 M8 90H592 M8 160H592" stroke="#26334d" fill="none"/><polyline points="' + points + '" fill="none" stroke="#42d6ad" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>';
+      } else {
+        chart.innerHTML = '<text x="12" y="80" fill="currentColor">Chart history unavailable</text>';
+      }
+    } catch (error) {
+      statusEl.textContent = "Live feed unavailable: " + error.message + " You can retry.";
+      updatedEl.textContent = "No successful update yet.";
+    }
+  }
 
   async function refreshAccountStatus() {
     const email = document.getElementById("accountEmail");
@@ -265,10 +326,20 @@ if (sidebar && main) {
     item.classList.add("active");
     main.innerHTML = panels[name]();
 
+    if (marketRefreshTimer) {
+      clearInterval(marketRefreshTimer);
+      marketRefreshTimer = null;
+    }
     if (name === "Settings") {
       document.getElementById("saveSettings").addEventListener("click", saveSettings);
       loadSettings();
-    } else if (name === "Overview" || name === "Strategy" || name === "Risk controls") {
+    } else if (name === "Overview") {
+      loadSavedConfigSummary(name);
+      document.getElementById("marketSymbol").addEventListener("change", loadLiveMarketData);
+      document.getElementById("refreshMarket").addEventListener("click", loadLiveMarketData);
+      loadLiveMarketData();
+      marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
+    } else if (name === "Strategy" || name === "Risk controls") {
       loadSavedConfigSummary(name);
     } else if (name === "Account status") {
       refreshAccountStatus();
