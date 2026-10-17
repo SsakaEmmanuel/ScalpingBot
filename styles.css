@@ -10,3 +10,14 @@
 #demoOpenTrade{font-size:11px;line-height:1.7}
 #demoHistoryRows table th,#demoHistoryRows table td{padding:9px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
 @media(max-width:650px){.demo-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.demo-stats strong{font-size:15px}}
+
+/* Dedicated ScalpingBot workspace pages */
+body.workspace-page .hero,
+body.workspace-page .metrics,
+body.workspace-page #features,
+body.workspace-page .security{display:none}
+body.workspace-page .dashboard-section{padding-top:28px;min-height:calc(100vh - 150px)}
+.workspace-links{display:flex;gap:18px;align-items:center}
+.workspace-links a{font-size:13px;color:var(--muted)}
+.workspace-links a:hover{color:var(--green)}
+@media(max-width:650px){.workspace-links{gap:9px}.workspace-links a{font-size:11px}body.workspace-page .dashboard-section{padding-top:18px}}
