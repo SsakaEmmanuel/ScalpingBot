@@ -70,6 +70,7 @@ if (sidebar && main) {
         <button class="btn outline" id="demoReset" type="button">Reset demo results</button>
       </div>
       <p id="demoStatus" class="notice" role="status">Simulation is paused. No real orders can be sent.</p>
+      <p><small>Dashboard refresh: every 1 second · External market feed: every 30 seconds to reduce provider rate-limit risk.</small></p>
       <div id="demoOpenTrade" class="empty">No open simulated trade.</div>
     </div>
   `;
