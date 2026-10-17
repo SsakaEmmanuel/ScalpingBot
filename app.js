@@ -254,7 +254,10 @@ if (sidebar && main) {
         // Conservative rule: if stop and target occur in the same candle, count the stop first.
         const exit=stopHit?t.stop:t.target, pnl=t.riskCash*(stopHit?-1:1.5);
         demoState.balance=Math.max(0,demoState.balance+pnl);
-        demoState.trades.push({...t,status:"CLOSED",exit,pnl,closedAt:new Date().toISOString(),closeReason:stopHit?"Stop-loss":"Take-profit"});
+        const closedTrade={...t,status:"CLOSED",exit,pnl,closedAt:new Date().toISOString(),closeReason:stopHit?"Stop-loss":"Take-profit"};
+        const existingIndex=demoState.trades.findIndex(item=>item.id===t.id);
+        if (existingIndex>=0) demoState.trades[existingIndex]=closedTrade;
+        else demoState.trades.push(closedTrade);
         demoState.openTrade=null;
       }
     }
