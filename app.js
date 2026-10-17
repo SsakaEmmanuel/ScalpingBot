@@ -140,7 +140,7 @@ if (sidebar && main) {
         <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
       </div>`,
     "Market Analysis": () => marketPanelHTML(),
-    "Demo Trading": () => demoPanelHTML(),
+    "Demo Trading": () => demoPanelHTML() + '<div style="display:none" aria-hidden="true">' + marketPanelHTML() + '</div>',
     "Account status": accountPanelHTML,
     "Strategy": () => `
       <div class="panel"><h3>Strategy configuration</h3>
@@ -619,7 +619,7 @@ if (sidebar && main) {
         loadDemoState();
         demoUiRefreshTimer = setInterval(renderDemoEngine, 1000);
       }
-      if (name === "Overview" || name === "Market Analysis") {
+      if (name === "Overview" || name === "Market Analysis" || name === "Demo Trading") {
         loadLiveMarketData();
         marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
       }
