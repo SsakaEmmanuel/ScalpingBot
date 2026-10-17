@@ -14,8 +14,7 @@
 /* Dedicated ScalpingBot workspace pages */
 body.workspace-page .hero,
 body.workspace-page .metrics,
-body.workspace-page #features,
-body.workspace-page .security{display:none}
+body.workspace-page #features{display:none}
 body.workspace-page .dashboard-section{padding-top:28px;min-height:calc(100vh - 150px)}
 .workspace-links{display:flex;gap:18px;align-items:center}
 .workspace-links a{font-size:13px;color:var(--muted)}
@@ -61,4 +60,28 @@ body.workspace-page .dashboard-section{padding-top:28px;min-height:calc(100vh - 
 @media(max-width:420px){
   .topbar nav.workspace-links{gap:5px}
   .workspace-links a{font-size:10px;padding:7px 8px}
+}
+
+
+/* Security information lives in the footer across all workspace pages. */
+footer .security{
+  display:grid;
+  flex:1 0 100%;
+  width:100%;
+  max-width:1300px;
+  margin:0 auto;
+  padding:36px 0 28px;
+  grid-template-columns:1fr .8fr;
+  gap:28px;
+  align-items:center;
+  border-bottom:1px solid var(--border);
+}
+footer .security h2{font-size:clamp(25px,3vw,36px);margin:14px 0}
+footer .security p,footer .security li{font-size:12px}
+footer .security-card{margin:0}
+.footer-meta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;width:100%;padding-top:18px}
+@media(max-width:650px){
+  footer .security{grid-template-columns:1fr;gap:18px;padding:28px 0 22px}
+  footer .security h2{font-size:28px}
+  .footer-meta{align-items:flex-start;flex-direction:column}
 }
