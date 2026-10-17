@@ -278,6 +278,7 @@ if (sidebar && main) {
   }
 
   let marketRefreshTimer = null;
+  let demoUiRefreshTimer = null;
   let marketChartType = "line";
   let lastMarketCandles = [];
   let visibleCandleCount = 30;
@@ -565,6 +566,10 @@ if (sidebar && main) {
       clearInterval(marketRefreshTimer);
       marketRefreshTimer = null;
     }
+    if (demoUiRefreshTimer) {
+      clearInterval(demoUiRefreshTimer);
+      demoUiRefreshTimer = null;
+    }
     if (name === "Settings") {
       document.getElementById("saveSettings").addEventListener("click", saveSettings);
       loadSettings();
@@ -611,6 +616,7 @@ if (sidebar && main) {
       loadDemoState();
       loadLiveMarketData();
       marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
+      demoUiRefreshTimer = setInterval(renderDemoEngine, 1000);
     } else if (name === "Strategy" || name === "Risk controls") {
       loadSavedConfigSummary(name);
     } else if (name === "Trade history") {
