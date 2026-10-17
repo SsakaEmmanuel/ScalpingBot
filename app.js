@@ -66,6 +66,10 @@ if (sidebar && main) {
         </select>
       </label>
       <div class="market-quote"><small id="marketSymbolLabel">EUR/USD</small><h2 id="marketPrice">Loading…</h2><p id="marketState" class="notice" role="status">Connecting to market-data service…</p></div>
+      <div class="chart-switch" role="group" aria-label="Chart type" style="display:flex;gap:8px;margin:12px 0">
+        <button class="btn primary" id="lineChartBtn" type="button" aria-pressed="true">Line</button>
+        <button class="btn outline" id="candleChartBtn" type="button" aria-pressed="false">Candlestick</button>
+      </div>
       <svg id="marketChart" viewBox="0 0 600 180" role="img" aria-label="Recent indicative market prices" style="width:100%;height:auto;min-height:120px"></svg>
       <p><small id="marketUpdated">Waiting for first update…</small></p>
       <button class="btn outline" id="refreshMarket" type="button">Refresh prices</button>
@@ -105,6 +109,51 @@ if (sidebar && main) {
   };
 
   let marketRefreshTimer = null;
+  let marketChartType = "line";
+  let lastMarketCandles = [];
+
+  function drawMarketChart(candles) {
+    const chart = document.getElementById("marketChart");
+    if (!chart) return;
+    const rows = (candles || []).filter(c =>
+      Number.isFinite(Number(c.open)) && Number.isFinite(Number(c.high)) &&
+      Number.isFinite(Number(c.low)) && Number.isFinite(Number(c.close))
+    );
+    if (rows.length < 2) {
+      chart.innerHTML = '<text x="12" y="80" fill="currentColor">Chart history unavailable</text>';
+      return;
+    }
+
+    const visible = rows.slice(-60);
+    const allValues = visible.flatMap(c => [Number(c.high), Number(c.low)]);
+    const min = Math.min(...allValues);
+    const max = Math.max(...allValues);
+    const range = max - min || Math.abs(max) * 0.0001 || 1;
+    const y = value => 12 + (max - value) / range * 150;
+    const x = index => 8 + index * 584 / (visible.length - 1);
+    const grid = '<path d="M8 12H592 M8 87H592 M8 162H592" stroke="#26334d" fill="none"/>';
+    if (marketChartType === "candles") {
+      const candleWidth = Math.max(3, Math.min(9, 560 / visible.length * 0.58));
+      const sticks = visible.map((c, index) => {
+        const open = Number(c.open), close = Number(c.close);
+        const high = Number(c.high), low = Number(c.low);
+        const rising = close >= open;
+        const color = rising ? "#42d6ad" : "#ff7185";
+        const cx = x(index);
+        const top = Math.min(y(open), y(close));
+        const bodyHeight = Math.max(1.5, Math.abs(y(open) - y(close)));
+        return '<g stroke="' + color + '" fill="' + color + '">' +
+          '<line x1="' + cx.toFixed(1) + '" y1="' + y(high).toFixed(1) + '" x2="' + cx.toFixed(1) + '" y2="' + y(low).toFixed(1) + '" stroke-width="1.5"/>' +
+          '<rect x="' + (cx - candleWidth / 2).toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + candleWidth.toFixed(1) + '" height="' + bodyHeight.toFixed(1) + '" rx="0.5"/>' +
+          '</g>';
+      }).join("");
+      chart.innerHTML = grid + sticks;
+    } else {
+      const closes = visible.map(c => Number(c.close));
+      const points = closes.map((value, index) => x(index).toFixed(1) + "," + y(value).toFixed(1)).join(" ");
+      chart.innerHTML = grid + '<polyline points="' + points + '" fill="none" stroke="#42d6ad" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    }
+  }
 
   async function loadLiveMarketData() {
     const panel = document.getElementById("liveMarketPanel");
@@ -127,19 +176,8 @@ if (sidebar && main) {
       priceEl.textContent = Number(data.price).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
       statusEl.textContent = "Feed: " + data.provider + " · " + (data.marketState || "market status unavailable") + ". Indicative only.";
       updatedEl.textContent = "Fetched " + new Date(data.fetchedAt).toLocaleTimeString() + (data.exchangeTimezoneName ? " · Provider timezone: " + data.exchangeTimezoneName : "");
-      const closes = (data.candles || []).map(c => Number(c.close)).filter(Number.isFinite);
-      if (closes.length > 1) {
-        const min = Math.min(...closes), max = Math.max(...closes);
-        const spread = max - min || 1;
-        const points = closes.map((value, index) => {
-          const x = 8 + index * 584 / (closes.length - 1);
-          const y = 160 - ((value - min) / spread) * 140;
-          return x.toFixed(1) + "," + y.toFixed(1);
-        }).join(" ");
-        chart.innerHTML = '<path d="M8 20H592 M8 90H592 M8 160H592" stroke="#26334d" fill="none"/><polyline points="' + points + '" fill="none" stroke="#42d6ad" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>';
-      } else {
-        chart.innerHTML = '<text x="12" y="80" fill="currentColor">Chart history unavailable</text>';
-      }
+      lastMarketCandles = data.candles || [];
+      drawMarketChart(lastMarketCandles);
     } catch (error) {
       statusEl.textContent = "Live feed unavailable: " + error.message + " You can retry.";
       updatedEl.textContent = "No successful update yet.";
@@ -337,6 +375,22 @@ if (sidebar && main) {
       loadSavedConfigSummary(name);
       document.getElementById("marketSymbol").addEventListener("change", loadLiveMarketData);
       document.getElementById("refreshMarket").addEventListener("click", loadLiveMarketData);
+      document.getElementById("lineChartBtn").addEventListener("click", () => {
+        marketChartType = "line";
+        document.getElementById("lineChartBtn").className = "btn primary";
+        document.getElementById("candleChartBtn").className = "btn outline";
+        document.getElementById("lineChartBtn").setAttribute("aria-pressed", "true");
+        document.getElementById("candleChartBtn").setAttribute("aria-pressed", "false");
+        drawMarketChart(lastMarketCandles);
+      });
+      document.getElementById("candleChartBtn").addEventListener("click", () => {
+        marketChartType = "candles";
+        document.getElementById("lineChartBtn").className = "btn outline";
+        document.getElementById("candleChartBtn").className = "btn primary";
+        document.getElementById("lineChartBtn").setAttribute("aria-pressed", "false");
+        document.getElementById("candleChartBtn").setAttribute("aria-pressed", "true");
+        drawMarketChart(lastMarketCandles);
+      });
       loadLiveMarketData();
       marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
     } else if (name === "Strategy" || name === "Risk controls") {
