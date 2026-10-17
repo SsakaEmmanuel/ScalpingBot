@@ -53,7 +53,11 @@ if (sidebar && main) {
   `;
 
   const panels = {
-    "Overview": () => originalMainHTML,
+    "Overview": () => originalMainHTML + `
+      <div class="panel" id="overviewSavedConfig">
+        <h3>Saved configuration</h3>
+        <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
+      </div>`,
     "Strategy": () => `
       <div class="panel"><h3>Strategy configuration</h3>
       <p>Saved strategy preferences from your Supabase account. These are configuration only; no signals or trades are executed.</p></div>`,
@@ -68,7 +72,9 @@ if (sidebar && main) {
 
   async function loadSavedConfigSummary(name) {
     const client = supabaseClient();
-    const panel = main.querySelector(".panel");
+    const panel = name === "Overview"
+      ? main.querySelector("#overviewSavedConfig")
+      : main.querySelector(".panel");
     if (!panel) return;
 
     if (!client) {
@@ -216,7 +222,7 @@ if (sidebar && main) {
     if (name === "Settings") {
       document.getElementById("saveSettings").addEventListener("click", saveSettings);
       loadSettings();
-    } else if (name === "Strategy" || name === "Risk controls") {
+    } else if (name === "Overview" || name === "Strategy" || name === "Risk controls") {
       loadSavedConfigSummary(name);
     }
   }
