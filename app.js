@@ -3,8 +3,8 @@
 
 const tabNames = [
   "Overview",
-  "Strategy",
-  "Risk controls",
+  "Market Analysis",
+  "Demo Trading",
   "Trade history",
   "Account status",
   "Settings"
@@ -134,11 +134,13 @@ if (sidebar && main) {
   `;
 
   const panels = {
-    "Overview": () => originalMainHTML + marketPanelHTML() + demoPanelHTML() + `
+    "Overview": () => originalMainHTML + `
       <div class="panel" id="overviewSavedConfig">
         <h3>Saved configuration</h3>
         <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
       </div>`,
+    "Market Analysis": () => marketPanelHTML(),
+    "Demo Trading": () => demoPanelHTML(),
     "Account status": accountPanelHTML,
     "Strategy": () => `
       <div class="panel"><h3>Strategy configuration</h3>
@@ -573,24 +575,24 @@ if (sidebar && main) {
     if (name === "Settings") {
       document.getElementById("saveSettings").addEventListener("click", saveSettings);
       loadSettings();
-    } else if (name === "Overview") {
-      loadSavedConfigSummary(name);
-      document.getElementById("marketSymbol").addEventListener("change", loadLiveMarketData);
-      document.getElementById("marketTimeframe").addEventListener("change", loadLiveMarketData);
-      document.getElementById("refreshMarket").addEventListener("click", loadLiveMarketData);
-      document.getElementById("zoomIn").addEventListener("click", () => {
+    } else if (name === "Overview" || name === "Market Analysis" || name === "Demo Trading") {
+      if (name === "Overview") loadSavedConfigSummary(name);
+      if (document.getElementById("marketSymbol")) document.getElementById("marketSymbol").addEventListener("change", loadLiveMarketData);
+      if (document.getElementById("marketTimeframe")) document.getElementById("marketTimeframe").addEventListener("change", loadLiveMarketData);
+      if (document.getElementById("refreshMarket")) document.getElementById("refreshMarket").addEventListener("click", loadLiveMarketData);
+      if (document.getElementById("zoomIn")) document.getElementById("zoomIn").addEventListener("click", () => {
         visibleCandleCount = Math.max(10, visibleCandleCount - 5);
         drawMarketChart(lastMarketCandles);
       });
-      document.getElementById("zoomOut").addEventListener("click", () => {
+      if (document.getElementById("zoomOut")) document.getElementById("zoomOut").addEventListener("click", () => {
         visibleCandleCount = Math.min(60, visibleCandleCount + 5);
         drawMarketChart(lastMarketCandles);
       });
-      document.getElementById("zoomReset").addEventListener("click", () => {
+      if (document.getElementById("zoomReset")) document.getElementById("zoomReset").addEventListener("click", () => {
         visibleCandleCount = 30;
         drawMarketChart(lastMarketCandles);
       });
-      document.getElementById("lineChartBtn").addEventListener("click", () => {
+      if (document.getElementById("lineChartBtn")) document.getElementById("lineChartBtn").addEventListener("click", () => {
         marketChartType = "line";
         document.getElementById("lineChartBtn").className = "btn primary";
         document.getElementById("candleChartBtn").className = "btn outline";
@@ -598,7 +600,7 @@ if (sidebar && main) {
         document.getElementById("candleChartBtn").setAttribute("aria-pressed", "false");
         drawMarketChart(lastMarketCandles);
       });
-      document.getElementById("candleChartBtn").addEventListener("click", () => {
+      if (document.getElementById("candleChartBtn")) document.getElementById("candleChartBtn").addEventListener("click", () => {
         marketChartType = "candles";
         document.getElementById("lineChartBtn").className = "btn outline";
         document.getElementById("candleChartBtn").className = "btn primary";
@@ -606,17 +608,21 @@ if (sidebar && main) {
         document.getElementById("candleChartBtn").setAttribute("aria-pressed", "true");
         drawMarketChart(lastMarketCandles);
       });
-      document.getElementById("demoStart").addEventListener("click", () => { demoState.enabled=true; demoState.pausedReason=""; saveDemoState(); renderDemoEngine(); });
-      document.getElementById("demoPause").addEventListener("click", () => { demoState.enabled=false; saveDemoState(); renderDemoEngine(); });
-      document.getElementById("demoReset").addEventListener("click", () => {
+      if (document.getElementById("demoStart")) document.getElementById("demoStart").addEventListener("click", () => { demoState.enabled=true; demoState.pausedReason=""; saveDemoState(); renderDemoEngine(); });
+      if (document.getElementById("demoPause")) document.getElementById("demoPause").addEventListener("click", () => { demoState.enabled=false; saveDemoState(); renderDemoEngine(); });
+      if (document.getElementById("demoReset")) document.getElementById("demoReset").addEventListener("click", () => {
         if (!confirm("Reset your local simulated balance and demo trade history?")) return;
         demoState={balance:10000,initialBalance:10000,enabled:false,trades:[],openTrade:null,lastProcessedCandle:null,dayStartBalance:10000,dayKey:new Date().toISOString().slice(0,10),pausedReason:""};
         saveDemoState(); renderDemoEngine();
       });
-      loadDemoState();
-      loadLiveMarketData();
-      marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
-      demoUiRefreshTimer = setInterval(renderDemoEngine, 1000);
+      if (name === "Overview" || name === "Demo Trading") {
+        loadDemoState();
+        demoUiRefreshTimer = setInterval(renderDemoEngine, 1000);
+      }
+      if (name === "Overview" || name === "Market Analysis") {
+        loadLiveMarketData();
+        marketRefreshTimer = setInterval(loadLiveMarketData, 30000);
+      }
     } else if (name === "Strategy" || name === "Risk controls") {
       loadSavedConfigSummary(name);
     } else if (name === "Trade history") {
@@ -633,17 +639,26 @@ if (sidebar && main) {
     item.setAttribute("role", "button");
     item.setAttribute("tabindex", "0");
     item.style.cursor = "pointer";
-    item.addEventListener("click", () => openTab(name, item));
+    item.addEventListener("click", () => {
+      const routes = { "Overview": "dashboard.html", "Market Analysis": "market.html", "Demo Trading": "demo.html" };
+      if (routes[name]) { window.location.href = routes[name]; return; }
+      openTab(name, item);
+    });
     item.addEventListener("keydown", event => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
+        const routes = { "Overview": "dashboard.html", "Market Analysis": "market.html", "Demo Trading": "demo.html" };
+        if (routes[name]) { window.location.href = routes[name]; return; }
         openTab(name, item);
       }
     });
   });
 
-  // Render the default Overview with the market panel on first page load.
-  if (navItems[0]) openTab("Overview", navItems[0]);
+  // Render the selected page while keeping one shared dashboard controller.
+  const requestedView = document.body.dataset.view;
+  const initialTab = requestedView === "market" ? "Market Analysis" : requestedView === "demo" ? "Demo Trading" : "Overview";
+  const initialIndex = tabNames.indexOf(initialTab);
+  if (navItems[initialIndex]) openTab(initialTab, navItems[initialIndex]);
 }
 
 document.addEventListener("click", event => {
