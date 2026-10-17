@@ -56,15 +56,72 @@ if (sidebar && main) {
     "Overview": () => originalMainHTML,
     "Strategy": () => `
       <div class="panel"><h3>Strategy configuration</h3>
-      <p>Configure proposed settings in the Settings tab. Trading remains disabled.</p></div>`,
+      <p>Saved strategy preferences from your Supabase account. These are configuration only; no signals or trades are executed.</p></div>`,
     "Risk controls": () => `
       <div class="panel"><h3>Risk controls</h3>
-      <p>Review proposed risk and daily loss limits in Settings. These values do not control MT5.</p></div>`,
+      <p>Your saved risk preferences. They are not enforced by an MT5 bridge yet, and trading remains disabled.</p></div>`,
     "Trade history": () => `
       <div class="panel"><h3>Trade history</h3>
       <p class="empty">No trading data available. MT5 is not connected.</p></div>`,
     "Settings": settingsHTML
   };
+
+  async function loadSavedConfigSummary(name) {
+    const client = supabaseClient();
+    const panel = main.querySelector(".panel");
+    if (!panel) return;
+
+    if (!client) {
+      panel.insertAdjacentHTML("beforeend",
+        '<p class="notice" role="status">Supabase client unavailable. Settings could not be loaded.</p>');
+      return;
+    }
+
+    const notice = document.createElement("p");
+    notice.className = "notice";
+    notice.setAttribute("role", "status");
+    notice.textContent = "Loading saved configuration…";
+    panel.appendChild(notice);
+
+    try {
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      if (!userData.user) throw new Error("Please sign in to view saved settings.");
+
+      const { data, error } = await client
+        .from("bot_settings")
+        .select("symbol, timeframe, risk_percent, daily_loss_limit_percent, updated_at")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const details = document.createElement("div");
+      details.className = "saved-config";
+      if (data) {
+        const updated = data.updated_at
+          ? new Date(data.updated_at).toLocaleString()
+          : "Not recorded";
+        details.innerHTML =
+          '<p><strong>Symbol:</strong> ' + escapeHTML(data.symbol) + '</p>' +
+          '<p><strong>Timeframe:</strong> ' + escapeHTML(data.timeframe) + '</p>' +
+          '<p><strong>Proposed risk per trade:</strong> ' + escapeHTML(String(data.risk_percent)) + '%</p>' +
+          '<p><strong>Daily loss limit:</strong> ' + escapeHTML(String(data.daily_loss_limit_percent)) + '%</p>' +
+          '<p><small>Last saved: ' + escapeHTML(updated) + '</small></p>';
+      } else {
+        details.textContent = "No saved settings yet. Open Settings to choose and save your preferences.";
+      }
+      notice.replaceWith(details);
+    } catch (error) {
+      notice.textContent = "Could not load saved configuration: " + error.message;
+    }
+  }
+
+  function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
+  }
 
   async function loadSettings() {
     const status = document.getElementById("settingsStatus");
@@ -159,6 +216,8 @@ if (sidebar && main) {
     if (name === "Settings") {
       document.getElementById("saveSettings").addEventListener("click", saveSettings);
       loadSettings();
+    } else if (name === "Strategy" || name === "Risk controls") {
+      loadSavedConfigSummary(name);
     }
   }
 
