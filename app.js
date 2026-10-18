@@ -55,25 +55,56 @@ if (sidebar && main) {
 
   const demoPanelHTML = () => `
     <div class="panel" id="demoEnginePanel">
-      <h3>Strategy signals & demo engine <span class="tag">SIMULATION ONLY</span></h3>
-      <p>EMA 9/21 trend + RSI 14 filter. Signals are educational, not guarantees. Simulated results use candle data and simplified costs.</p>
+      <h3>Price-driven scalping engine <span class="tag">PAPER TRADING</span></h3>
+      <p>Manual or rule-based paper trading using the latest available market price. No EMA/RSI indicators. Live broker orders are disabled until a broker connection is configured and tested.</p>
       <div class="demo-stats">
-        <div><small>Signal</small><strong id="demoSignal">Waiting for candles</strong></div>
-        <div><small>Demo balance</small><strong id="demoBalance">$10,000.00</strong></div>
-        <div><small>Closed trades</small><strong id="demoClosedCount">0</strong></div>
-        <div><small>Win rate</small><strong id="demoWinRate">—</strong></div>
+        <div><small>Latest indicative price</small><strong id="scalpPrice">Waiting for feed</strong></div>
+        <div><small>Paper balance</small><strong id="demoBalance">$10,000.00</strong></div>
+        <div><small>Closed paper trades</small><strong id="demoClosedCount">0</strong></div>
+        <div><small>Paper win rate</small><strong id="demoWinRate">—</strong></div>
       </div>
-      <p id="demoReason" class="notice" role="status">Waiting for market candles to explain the current signal.</p>
-      <p id="demoIndicators" class="notice">Indicator details will appear when enough candles are available.</p>
-      <p id="demoRiskSummary" class="notice">Demo risk: 0.5% per trade · Daily loss limit: 2.0%.</p>
+      <div class="market-controls" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0">
+        <label>Symbol
+          <select id="scalpSymbol"><option value="EURUSD" selected>EUR/USD</option><option value="GBPUSD">GBP/USD</option><option value="USDJPY">USD/JPY</option><option value="XAUUSD">Gold (XAU/USD proxy)</option></select>
+        </label>
+        <label>Trading mode
+          <select id="scalpMode"><option value="manual" selected>Manual</option><option value="auto">Auto (paper only)</option></select>
+        </label>
+        <label>Lot size
+          <input id="scalpLot" type="number" min="0.01" max="10" step="0.01" value="0.01">
+        </label>
+        <label>Risk per trade (%)
+          <input id="scalpRisk" type="number" min="0.1" max="5" step="0.1" value="1">
+        </label>
+        <label>Stop loss (pips)
+          <input id="scalpSL" type="number" min="1" max="500" step="1" value="5">
+        </label>
+        <label>Take profit (pips)
+          <input id="scalpTP" type="number" min="1" max="1000" step="1" value="8">
+        </label>
+        <label>Auto entry interval
+          <select id="scalpInterval"><option value="1" selected>Every eligible price update</option><option value="5">5 seconds</option><option value="15">15 seconds</option></select>
+        </label>
+        <label>Daily loss limit (%)
+          <input id="scalpDailyLimit" type="number" min="1" max="10" step="0.5" value="2">
+        </label>
+      </div>
+      <p id="scalpQuoteStatus" class="notice" role="status">Waiting for the indicative market feed. This is not a broker quote stream.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
-        <button class="btn primary" id="demoStart" type="button">Start demo simulation</button>
-        <button class="btn outline" id="demoPause" type="button">Pause simulation</button>
-        <button class="btn outline" id="demoReset" type="button">Reset demo results</button>
+        <button class="btn primary" id="scalpBuy" type="button">Paper BUY</button>
+        <button class="btn outline" id="scalpSell" type="button">Paper SELL</button>
+        <button class="btn outline" id="scalpClose" type="button">Close paper position</button>
       </div>
-      <p id="demoStatus" class="notice" role="status">Simulation is paused. No real orders can be sent.</p>
-      <p><small>Dashboard refresh: every 1 second · External market feed: every 30 seconds to reduce provider rate-limit risk.</small></p>
-      <div id="demoOpenTrade" class="empty">No open simulated trade.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+        <button class="btn primary" id="scalpAutoStart" type="button">Start auto paper mode</button>
+        <button class="btn outline" id="scalpStop" type="button">Stop engine</button>
+        <button class="btn outline" id="demoReset" type="button">Reset paper results</button>
+      </div>
+      <p id="demoReason" class="notice" role="status">Manual mode is selected. Choose Paper BUY or Paper SELL to open a simulated position.</p>
+      <p id="demoRiskSummary" class="notice">Risk 1% · SL 5 pips · TP 8 pips · Lot 0.01</p>
+      <p id="demoStatus" class="notice" role="status">Paper engine stopped. Live broker orders are disabled.</p>
+      <div id="demoOpenTrade" class="empty">No open paper position.</div>
+      <p><small>Price source refreshes on the existing feed schedule (currently 30 seconds). This is not suitable for true tick-scalping; a broker streaming quote connection is required for that.</small></p>
     </div>
   `;
 
@@ -159,55 +190,57 @@ if (sidebar && main) {
   };
 
 
-  let demoStorageKey = "scalpingbot-demo-v1-guest";
-  let demoState = { balance: 10000, initialBalance: 10000, enabled: false, trades: [], openTrade: null, lastProcessedCandle: null, dayStartBalance: 10000, dayKey: new Date().toISOString().slice(0,10), pausedReason: "" };
+  let demoStorageKey = "scalpingbot-demo-v2-guest";
+  let demoState = { balance:10000, initialBalance:10000, enabled:false, mode:"manual", trades:[], openTrade:null, dayStartBalance:10000, dayKey:new Date().toISOString().slice(0,10), pausedReason:"" };
   let demoStateLoaded = false;
-  let demoRiskPercent = 0.5;
+  let demoRiskPercent = 1;
   let demoDailyLossLimit = 2;
-  let latestSignal = { side: "WAIT", reason: "Waiting for market candles." };
+  let scalpLatestPrice = null;
+  let scalpPreviousPrice = null;
+  let scalpLastAutoEntryAt = 0;
+  let scalpSettings = { symbol:"EURUSD", lot:0.01, stopPips:5, targetPips:8, riskPercent:1, intervalSeconds:1, dailyLimit:2, mode:"manual" };
 
-  async function loadDemoRiskSettings() {
-    const client = supabaseClient();
-    if (!client) return;
-    try {
-      const { data: userData, error: userError } = await client.auth.getUser();
-      if (userError) throw userError;
-      if (!userData.user) return;
-      const { data, error } = await client.from("bot_settings")
-        .select("risk_percent, daily_loss_limit_percent")
-        .eq("user_id", userData.user.id).maybeSingle();
-      if (error) throw error;
-      if (data) {
-        const risk = Number(data.risk_percent);
-        const daily = Number(data.daily_loss_limit_percent);
-        if ([0.25, 0.5, 1].includes(risk)) demoRiskPercent = risk;
-        if ([1, 2, 3].includes(daily)) demoDailyLossLimit = daily;
-      }
-    } catch (error) {
-      console.warn("Saved demo risk settings could not be loaded; safe defaults remain active.", error);
-    }
+  function scalpPipSize(symbol) { return symbol === "USDJPY" ? 0.01 : symbol === "XAUUSD" ? 0.1 : 0.0001; }
+  function scalpPipValuePerLot(symbol) { return symbol === "XAUUSD" ? 1 : symbol === "USDJPY" ? 6.7 : 10; }
+  function readScalpSettings() {
+    const value = id => document.getElementById(id);
+    const num = (id, fallback) => { const el=value(id), n=el?Number(el.value):fallback; return Number.isFinite(n)&&n>0?n:fallback; };
+    scalpSettings = {
+      symbol: value("scalpSymbol")?.value || "EURUSD",
+      mode: value("scalpMode")?.value || "manual",
+      lot: Math.min(10,Math.max(0.01,num("scalpLot",0.01))),
+      riskPercent: Math.min(5,Math.max(0.1,num("scalpRisk",1))),
+      stopPips: Math.min(500,Math.max(1,num("scalpSL",5))),
+      targetPips: Math.min(1000,Math.max(1,num("scalpTP",8))),
+      intervalSeconds: Number(value("scalpInterval")?.value || 1),
+      dailyLimit: Math.min(10,Math.max(1,num("scalpDailyLimit",2)))
+    };
+    demoRiskPercent = scalpSettings.riskPercent;
+    demoDailyLossLimit = scalpSettings.dailyLimit;
+    if (demoState) demoState.mode = scalpSettings.mode;
     renderDemoEngine();
+    saveDemoState();
   }
+
+  async function loadDemoRiskSettings() { renderDemoEngine(); }
 
   async function loadDemoState() {
     try {
       const client = supabaseClient();
       const result = client ? await client.auth.getUser() : null;
       const user = result && result.data ? result.data.user : null;
-      demoStorageKey = "scalpingbot-demo-v1-" + (user ? user.id : "guest");
+      demoStorageKey = "scalpingbot-demo-v2-" + (user ? user.id : "guest");
       const saved = localStorage.getItem(demoStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.trades) && Number.isFinite(Number(parsed.balance))) demoState = { ...demoState, ...parsed, enabled: false };
+        if (parsed && Array.isArray(parsed.trades) && Number.isFinite(Number(parsed.balance))) demoState = { ...demoState, ...parsed, enabled:false };
       }
-    } catch (error) { console.warn("Demo state could not be loaded:", error); }
+    } catch (error) { console.warn("Paper trading state could not be loaded:", error); }
     demoStateLoaded = true;
     renderDemoEngine();
-    // Market data can arrive before local demo state finishes loading. Re-process
-    // the latest candles now so the signal does not remain stuck on its placeholder.
     if (lastMarketCandles.length) {
-      const symbolControl = document.getElementById("marketSymbol");
-      processDemoCandles(lastMarketCandles, symbolControl ? symbolControl.value : "EURUSD");
+      const last = lastMarketCandles[lastMarketCandles.length-1];
+      if (last && Number.isFinite(Number(last.close))) handleScalpPrice(Number(last.close), scalpSettings.symbol);
     }
   }
 
@@ -215,139 +248,98 @@ if (sidebar && main) {
     try { localStorage.setItem(demoStorageKey, JSON.stringify({ ...demoState, enabled: false })); }
     catch (error) {
       const status = document.getElementById("demoStatus");
-      if (status) status.textContent = "Browser storage unavailable; results may not persist after closing this page.";
+      if (status) status.textContent = "Browser storage unavailable; paper history may not persist.";
     }
-  }
-
-  function ema(values, period) {
-    if (values.length < period) return null;
-    const k = 2 / (period + 1);
-    let value = values.slice(0, period).reduce((a,b)=>a+b,0) / period;
-    for (let i = period; i < values.length; i++) value = values[i] * k + value * (1-k);
-    return value;
-  }
-
-  function calculateSignal(candles) {
-    const validCandles = (candles || []).filter(c =>
-      c && Number.isFinite(Number(c.close)) && Number(c.close) > 0
-    );
-    const closes = validCandles.map(c => Number(c.close));
-    if (closes.length < 30) return {
-      side: "WAIT",
-      reason: "Not enough valid candle closes for analysis.",
-      indicators: "Valid candle closes: " + closes.length + " / 30 required. Check the selected symbol/timeframe and feed response."
-    };
-    const fast = ema(closes.slice(-40), 9);
-    const slow = ema(closes.slice(-60), 21);
-    const priorFast = ema(closes.slice(-41,-1), 9);
-    const priorSlow = ema(closes.slice(-61,-1), 21);
-    const recent = closes.slice(-15);
-    const changes = recent.slice(1).map((v,i)=>v-recent[i]);
-    const avgGain = changes.reduce((a,v)=>a+Math.max(0,v),0)/14;
-    const avgLoss = changes.reduce((a,v)=>a+Math.max(0,-v),0)/14;
-    const rsi = avgGain === 0 && avgLoss === 0 ? 50 : avgLoss === 0 ? 100 : 100 - 100/(1 + avgGain/avgLoss);
-    const lastClose = closes[closes.length - 1];
-    // Use trend + RSI zone + price relative to the fast EMA. This allows a
-    // controlled trend pullback instead of requiring EMA slope to rise on
-    // every single candle, which can leave the demo stuck on WAIT.
-    const bullishTrend = fast > slow;
-    const bearishTrend = fast < slow;
-    const bullish = bullishTrend && rsi >= 40 && rsi <= 78 && lastClose >= fast;
-    const bearish = bearishTrend && rsi >= 22 && rsi <= 60 && lastClose <= fast;
-    const trend = bullishTrend ? "EMA 9 above EMA 21" : bearishTrend ? "EMA 9 below EMA 21" : "EMAs are level";
-    const momentum = fast > priorFast ? "short-term momentum rising" : fast < priorFast ? "short-term momentum falling" : "short-term momentum flat";
-    const indicators = "Candles: " + validCandles.length + " · " + trend + " · " + momentum + " · RSI 14: " + rsi.toFixed(1) + " · Close: " + lastClose + " · EMA 9: " + fast.toPrecision(7);
-    if (bullish) return { side:"BUY", reason:"BUY setup: EMA 9 is above EMA 21, RSI is within the trend zone, and price is at/above EMA 9. Simulation only.", indicators };
-    if (bearish) return { side:"SELL", reason:"SELL setup: EMA 9 is below EMA 21, RSI is within the trend zone, and price is at/below EMA 9. Simulation only.", indicators };
-    const blockers = [];
-    if (!bullishTrend && !bearishTrend) blockers.push("EMAs are level");
-    if (bullishTrend && lastClose < fast) blockers.push("price is below EMA 9");
-    if (bearishTrend && lastClose > fast) blockers.push("price is above EMA 9");
-    if (bullishTrend && (rsi < 40 || rsi > 78)) blockers.push("RSI outside BUY zone (40–78)");
-    if (bearishTrend && (rsi < 22 || rsi > 60)) blockers.push("RSI outside SELL zone (22–60)");
-    return { side:"WAIT", reason:"WAIT: " + (blockers.length ? blockers.join("; ") : "no valid trend entry on the latest candle") + ".", indicators };
   }
 
   function renderDemoEngine() {
-    const signal = document.getElementById("demoSignal");
-    if (!signal) return;
-    signal.textContent = latestSignal.side;
-    signal.style.color = latestSignal.side === "BUY" ? "#42d6ad" : latestSignal.side === "SELL" ? "#ff7185" : "var(--text)";
-    document.getElementById("demoReason").textContent = latestSignal.reason;
-    const indicators = document.getElementById("demoIndicators");
-    if (indicators) indicators.textContent = latestSignal.indicators || "Indicator details will appear when enough candles are available.";
-    const riskSummary = document.getElementById("demoRiskSummary");
-    if (riskSummary) riskSummary.textContent = "Demo risk: " + demoRiskPercent.toFixed(2).replace(/0$/, "") + "% per trade · Daily loss limit: " + demoDailyLossLimit.toFixed(1) + "%.";
-    document.getElementById("demoBalance").textContent = "$" + Number(demoState.balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    const get = id => document.getElementById(id);
+    const price = get("scalpPrice");
+    if (!price) return;
+    price.textContent = scalpLatestPrice == null ? "Waiting for feed" : Number(scalpLatestPrice).toLocaleString(undefined,{minimumFractionDigits:scalpSettings.symbol==="USDJPY"?3:scalpSettings.symbol==="XAUUSD"?2:5,maximumFractionDigits:scalpSettings.symbol==="USDJPY"?3:scalpSettings.symbol==="XAUUSD"?2:5});
+    get("demoBalance").textContent = "$" + Number(demoState.balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
     const closed = demoState.trades.filter(t=>t.status==="CLOSED");
-    document.getElementById("demoClosedCount").textContent = String(closed.length);
-    const wins = closed.filter(t=>t.pnl>0).length;
-    document.getElementById("demoWinRate").textContent = closed.length ? (wins/closed.length*100).toFixed(1)+"%" : "—";
-    document.getElementById("demoStatus").textContent = demoState.enabled ? "Simulation RUNNING · local browser only · real trading disabled." : "Simulation PAUSED · no real orders can be sent.";
-    document.getElementById("demoOpenTrade").textContent = demoState.openTrade
-      ? "Open simulated " + demoState.openTrade.side + " " + demoState.openTrade.symbol + " at " + Number(demoState.openTrade.entry).toPrecision(7) + " · stop " + Number(demoState.openTrade.stop).toPrecision(7) + " · target " + Number(demoState.openTrade.target).toPrecision(7)
-      : "No open simulated trade.";
+    get("demoClosedCount").textContent = String(closed.length);
+    const wins = closed.filter(t=>Number(t.pnl)>0).length;
+    get("demoWinRate").textContent = closed.length ? (wins/closed.length*100).toFixed(1)+"%" : "—";
+    get("demoRiskSummary").textContent = "Risk " + scalpSettings.riskPercent + "% · SL " + scalpSettings.stopPips + " pips · TP " + scalpSettings.targetPips + " pips · Lot " + scalpSettings.lot;
+    get("demoStatus").textContent = demoState.enabled ? "AUTO PAPER MODE RUNNING · simulated positions only · broker orders disabled." : "Paper engine stopped. Live broker orders are disabled.";
+    get("demoReason").textContent = demoState.openTrade ? "Open paper " + demoState.openTrade.side + " position. It will close when the configured stop-loss or take-profit price is reached." : (scalpSettings.mode === "manual" ? "Manual mode: choose Paper BUY or Paper SELL. No indicator gate is used." : "Auto paper mode uses the direction of the latest price change; it does not use EMA/RSI. A new position is considered only on an eligible feed update.");
+    get("demoOpenTrade").textContent = demoState.openTrade ? ("Open paper " + demoState.openTrade.side + " " + demoState.openTrade.symbol + " · entry " + Number(demoState.openTrade.entry).toPrecision(7) + " · stop " + Number(demoState.openTrade.stop).toPrecision(7) + " · target " + Number(demoState.openTrade.target).toPrecision(7) + " · unrealized " + (demoState.openTrade.unrealizedPips||0).toFixed(1) + " pips") : "No open paper position.";
   }
 
-  function renderDemoHistory() {
-    const target = document.getElementById("demoHistoryRows");
-    if (!target) return;
-    const rows = demoState.trades.slice().reverse().slice(0,50);
-    if (!rows.length) { target.textContent = "No simulated trades yet. Start the demo engine on Overview."; return; }
-    target.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th align="left">Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>P/L</th><th>Status</th></tr></thead><tbody>' +
-      rows.map(t=>'<tr><td>'+escapeHTML(new Date(t.openedAt).toLocaleString())+'</td><td>'+escapeHTML(t.symbol)+'</td><td>'+escapeHTML(t.side)+'</td><td>'+escapeHTML(Number(t.entry).toPrecision(7))+'</td><td>'+(t.exit==null?"—":escapeHTML(Number(t.exit).toPrecision(7)))+'</td><td>'+(t.pnl==null?"—":(t.pnl>=0?"+":"")+"$"+Number(t.pnl).toFixed(2))+'</td><td>'+escapeHTML(t.status)+'</td></tr>').join("")+
-      '</tbody></table></div>';
+  function closeScalpPosition(exitPrice, reason) {
+    const t=demoState.openTrade;
+    if (!t || !Number.isFinite(exitPrice)) return;
+    const pipSize=scalpPipSize(t.symbol);
+    const direction=t.side==="BUY"?1:-1;
+    const pips=(exitPrice-t.entry)/pipSize*direction;
+    const pnl=pips*scalpPipValuePerLot(t.symbol)*t.lot;
+    demoState.balance=Math.max(0,demoState.balance+pnl);
+    const closed={...t,status:"CLOSED",exit:exitPrice,pnl,closedAt:new Date().toISOString(),closeReason:reason,realizedPips:pips};
+    const i=demoState.trades.findIndex(x=>x.id===t.id);
+    if(i>=0) demoState.trades[i]=closed; else demoState.trades.push(closed);
+    demoState.openTrade=null;
+    saveDemoState(); renderDemoEngine();
+  }
+
+  function openScalpPosition(side, price, symbol) {
+    if (!Number.isFinite(price) || price<=0) {
+      const status=document.getElementById("scalpQuoteStatus");
+      if(status) status.textContent="Cannot open paper position: no valid market price yet.";
+      return;
+    }
+    if (demoState.openTrade) {
+      const status=document.getElementById("scalpQuoteStatus");
+      if(status) status.textContent="One paper position is already open. Close it before opening another.";
+      return;
+    }
+    const riskCash=demoState.balance*scalpSettings.riskPercent/100;
+    const pipSize=scalpPipSize(symbol);
+    const direction=side==="BUY"?1:-1;
+    const riskByLots=scalpSettings.stopPips*scalpPipValuePerLot(symbol)*scalpSettings.lot;
+    if(riskByLots>riskCash+0.005) {
+      const status=document.getElementById("scalpQuoteStatus");
+      if(status) status.textContent="Lot size exceeds the configured risk budget. Reduce lot size or increase the risk limit.";
+      return;
+    }
+    const trade={id:String(Date.now()),symbol,side,entry:price,stop:price-direction*scalpSettings.stopPips*pipSize,target:price+direction*scalpSettings.targetPips*pipSize,lot:scalpSettings.lot,riskCash,openedAt:new Date().toISOString(),status:"OPEN",mode:scalpSettings.mode,unrealizedPips:0};
+    demoState.openTrade=trade; demoState.trades.push(trade);
+    const status=document.getElementById("scalpQuoteStatus");
+    if(status) status.textContent="Paper " + side + " opened at " + price + ". This is simulated only; no broker order was sent.";
+    saveDemoState(); renderDemoEngine();
+  }
+
+  function handleScalpPrice(price, symbol) {
+    if (!Number.isFinite(price) || price<=0) return;
+    scalpPreviousPrice=scalpLatestPrice;
+    scalpLatestPrice=price;
+    const quote=document.getElementById("scalpQuoteStatus");
+    if(quote) quote.textContent="Indicative feed update: " + new Date().toLocaleTimeString() + " · " + symbol + " · broker bid/ask stream not connected.";
+    const t=demoState.openTrade;
+    if(t && t.symbol===symbol) {
+      const direction=t.side==="BUY"?1:-1;
+      t.unrealizedPips=(price-t.entry)/scalpPipSize(symbol)*direction;
+      const stopHit=t.side==="BUY"?price<=t.stop:price>=t.stop;
+      const targetHit=t.side==="BUY"?price>=t.target:price<=t.target;
+      if(stopHit||targetHit) closeScalpPosition(stopHit?t.stop:t.target,stopHit?"Stop-loss":"Take-profit");
+    }
+    const today=new Date().toISOString().slice(0,10);
+    if(demoState.dayKey!==today){demoState.dayKey=today;demoState.dayStartBalance=demoState.balance;}
+    const dailyLoss=demoState.dayStartBalance>0?(demoState.dayStartBalance-demoState.balance)/demoState.dayStartBalance*100:100;
+    if(dailyLoss>=scalpSettings.dailyLimit){demoState.enabled=false;demoState.pausedReason="Daily loss limit reached."; }
+    if(demoState.enabled && !demoState.openTrade && scalpPreviousPrice!=null && Date.now()-scalpLastAutoEntryAt>=scalpSettings.intervalSeconds*1000) {
+      const delta=price-scalpPreviousPrice;
+      if(delta!==0){openScalpPosition(delta>0?"BUY":"SELL",price,symbol);scalpLastAutoEntryAt=Date.now();}
+    }
+    saveDemoState(); renderDemoEngine();
   }
 
   function processDemoCandles(candles, symbol) {
-    if (!demoStateLoaded || !candles) return;
-    if (candles.length < 30) {
-      latestSignal = {
-        side: "WAIT",
-        reason: "Waiting for at least 30 candles; the feed currently supplied " + candles.length + ".",
-        indicators: "Not enough candles to calculate EMA 9/21 and RSI 14."
-      };
-      renderDemoEngine();
-      return;
-    }
-    const last = candles[candles.length-1];
-    const candleId = String(last.time || last.timestamp || last.date || "") + "|" + String(last.close);
-    latestSignal = calculateSignal(candles);
-    const riskPercent = demoRiskPercent;
-    const dailyLimit = demoDailyLossLimit;
-    const today = new Date().toISOString().slice(0,10);
-    if (demoState.dayKey !== today) { demoState.dayKey=today; demoState.dayStartBalance=demoState.balance; }
-    const dailyLoss = demoState.dayStartBalance > 0 ? (demoState.dayStartBalance-demoState.balance)/demoState.dayStartBalance*100 : 100;
-    if (dailyLoss >= dailyLimit) { demoState.enabled=false; demoState.pausedReason="Daily loss guard reached."; }
-    const isNewCandle = candleId !== demoState.lastProcessedCandle;
-    if (isNewCandle && demoState.openTrade && demoState.openTrade.openCandleId !== candleId) {
-      const t=demoState.openTrade, high=Number(last.high), low=Number(last.low);
-      const stopHit=t.side==="BUY" ? low<=t.stop : high>=t.stop;
-      const targetHit=t.side==="BUY" ? high>=t.target : low<=t.target;
-      if (stopHit || targetHit) {
-        // Conservative rule: if stop and target occur in the same candle, count the stop first.
-        const exit=stopHit?t.stop:t.target, pnl=t.riskCash*(stopHit?-1:1.5);
-        demoState.balance=Math.max(0,demoState.balance+pnl);
-        const closedTrade={...t,status:"CLOSED",exit,pnl,closedAt:new Date().toISOString(),closeReason:stopHit?"Stop-loss":"Take-profit"};
-        const existingIndex=demoState.trades.findIndex(item=>item.id===t.id);
-        if (existingIndex>=0) demoState.trades[existingIndex]=closedTrade;
-        else demoState.trades.push(closedTrade);
-        demoState.openTrade=null;
-      }
-    }
-    if (demoState.enabled && isNewCandle && !demoState.openTrade && (latestSignal.side==="BUY" || latestSignal.side==="SELL")) {
-      const entry=Number(last.close);
-      const ranges=candles.slice(-15).map(c=>Number(c.high)-Number(c.low)).filter(v=>Number.isFinite(v)&&v>0);
-      const stopDistance=ranges.reduce((a,b)=>a+b,0)/Math.max(1,ranges.length);
-      const riskCash=demoState.balance*riskPercent/100;
-      if (stopDistance>0 && riskCash>0) {
-        const direction=latestSignal.side==="BUY"?1:-1;
-        const trade={id:String(Date.now()),symbol,side:latestSignal.side,entry,stop:entry-direction*stopDistance,target:entry+direction*stopDistance*1.5,riskCash,openedAt:new Date().toISOString(),openCandleId:candleId,status:"OPEN",reason:latestSignal.reason};
-        demoState.openTrade=trade; demoState.trades.push(trade);
-      }
-    }
-    if (candleId!==demoState.lastProcessedCandle) demoState.lastProcessedCandle=candleId;
-    saveDemoState(); renderDemoEngine();
+    if (!demoStateLoaded || !Array.isArray(candles) || !candles.length) return;
+    const last=candles[candles.length-1];
+    const price=Number(last.close);
+    if(Number.isFinite(price)&&price>0) handleScalpPrice(price,symbol);
   }
 
   let marketRefreshTimer = null;
@@ -683,11 +675,25 @@ if (sidebar && main) {
         document.getElementById("candleChartBtn").setAttribute("aria-pressed", "true");
         drawMarketChart(lastMarketCandles);
       });
-      if (document.getElementById("demoStart")) document.getElementById("demoStart").addEventListener("click", () => { demoState.enabled=true; demoState.pausedReason=""; saveDemoState(); renderDemoEngine(); });
-      if (document.getElementById("demoPause")) document.getElementById("demoPause").addEventListener("click", () => { demoState.enabled=false; saveDemoState(); renderDemoEngine(); });
+      ["scalpSymbol","scalpMode","scalpLot","scalpRisk","scalpSL","scalpTP","scalpInterval","scalpDailyLimit"].forEach(id => {
+        const el=document.getElementById(id);
+        if(el) el.addEventListener("change", () => {
+          readScalpSettings();
+          if(id==="scalpSymbol") loadLiveMarketData();
+        });
+      });
+      if (document.getElementById("scalpBuy")) document.getElementById("scalpBuy").addEventListener("click", () => { readScalpSettings(); openScalpPosition("BUY",scalpLatestPrice,scalpSettings.symbol); });
+      if (document.getElementById("scalpSell")) document.getElementById("scalpSell").addEventListener("click", () => { readScalpSettings(); openScalpPosition("SELL",scalpLatestPrice,scalpSettings.symbol); });
+      if (document.getElementById("scalpClose")) document.getElementById("scalpClose").addEventListener("click", () => { if(scalpLatestPrice==null){alert("No price available to close the paper position.");return;} closeScalpPosition(scalpLatestPrice,"Manual close"); });
+      if (document.getElementById("scalpAutoStart")) document.getElementById("scalpAutoStart").addEventListener("click", () => {
+        readScalpSettings();
+        if(scalpSettings.mode!=="auto"){alert("Select Auto mode first.");return;}
+        demoState.enabled=true; demoState.pausedReason=""; saveDemoState(); renderDemoEngine();
+      });
+      if (document.getElementById("scalpStop")) document.getElementById("scalpStop").addEventListener("click", () => { demoState.enabled=false; saveDemoState(); renderDemoEngine(); });
       if (document.getElementById("demoReset")) document.getElementById("demoReset").addEventListener("click", () => {
-        if (!confirm("Reset your local simulated balance and demo trade history?")) return;
-        demoState={balance:10000,initialBalance:10000,enabled:false,trades:[],openTrade:null,lastProcessedCandle:null,dayStartBalance:10000,dayKey:new Date().toISOString().slice(0,10),pausedReason:""};
+        if (!confirm("Reset paper balance and paper trade history?")) return;
+        demoState={balance:10000,initialBalance:10000,enabled:false,mode:"manual",trades:[],openTrade:null,dayStartBalance:10000,dayKey:new Date().toISOString().slice(0,10),pausedReason:""};
         saveDemoState(); renderDemoEngine();
       });
       if (name === "Overview" || name === "Demo Trading") {
