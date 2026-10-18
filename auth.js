@@ -10,8 +10,12 @@
   const dialog = document.getElementById("authDialog");
   let mode = "signin", client = null;
 
-  document.getElementById("configStatus").textContent =
-    configured ? "Values entered" : "Setup needed";
+  // This status element exists only on the dedicated security page.
+  // Do not let its absence on the home page interrupt login initialization.
+  const configStatus = document.getElementById("configStatus");
+  if (configStatus) {
+    configStatus.textContent = configured ? "Configured" : "Setup needed";
+  }
 
   if (configured && window.supabase?.createClient) {
     client = window.supabase.createClient(
