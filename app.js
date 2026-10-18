@@ -21,7 +21,7 @@ if (sidebar && main) {
   const settingsHTML = () => `
     <div class="panel">
       <h3>Settings</h3>
-      <p>Settings are saved to your private Supabase account.
+      <p>Settings are saved to your private account.
       They do not connect to MT5 or place trades.</p>
       <label>Symbol
         <select id="settingsSymbol">
@@ -139,7 +139,7 @@ if (sidebar && main) {
     "Overview": () => originalMainHTML + `
       <div class="panel" id="overviewSavedConfig">
         <h3>Saved configuration</h3>
-        <p>Your personal strategy preferences from Supabase. These settings do not place trades.</p>
+        <p>Your saved personal strategy preferences. These settings do not place trades.</p>
       </div>`,
     "Market Analysis": () => marketPanelHTML(),
     "Demo Trading": () => demoPanelHTML() + '<div style="display:none" aria-hidden="true">' + marketPanelHTML() + '</div>',
@@ -482,7 +482,7 @@ if (sidebar && main) {
 
     if (!client) {
       panel.insertAdjacentHTML("beforeend",
-        '<p class="notice" role="status">Supabase client unavailable. Settings could not be loaded.</p>');
+        '<p class="notice" role="status">Account service unavailable. Settings could not be loaded.</p>');
       return;
     }
 
@@ -538,7 +538,7 @@ if (sidebar && main) {
     const client = supabaseClient();
 
     if (!client) {
-      status.textContent = "Supabase client unavailable. Check auth.js and reload.";
+      status.textContent = "Account service unavailable. Please reload and try again.";
       return;
     }
 
