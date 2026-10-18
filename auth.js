@@ -64,7 +64,7 @@
   async function refreshSession() {
     if (!client) {
       status.textContent =
-        "Supabase configuration needed; dashboard locked.";
+        "Secure account service is unavailable; dashboard locked.";
       gate.classList.remove("hidden");
       dashboard.classList.add("hidden");
       return;
@@ -96,7 +96,7 @@
 
     if (!client) {
       msg.textContent =
-        "Supabase setup incomplete. Check config.js and reload the published site.";
+        "Account service setup is incomplete. Please try again later or contact support.";
       return;
     }
 
