@@ -228,8 +228,15 @@ if (sidebar && main) {
   }
 
   function calculateSignal(candles) {
-    const closes = (candles || []).map(c => Number(c.close)).filter(Number.isFinite);
-    if (closes.length < 30) return { side: "WAIT", reason: "Need at least 30 valid candles before analysis.", indicators: "Candles available: " + closes.length + " / 30." };
+    const validCandles = (candles || []).filter(c =>
+      c && Number.isFinite(Number(c.close)) && Number(c.close) > 0
+    );
+    const closes = validCandles.map(c => Number(c.close));
+    if (closes.length < 30) return {
+      side: "WAIT",
+      reason: "Not enough valid candle closes for analysis.",
+      indicators: "Valid candle closes: " + closes.length + " / 30 required. Check the selected symbol/timeframe and feed response."
+    };
     const fast = ema(closes.slice(-40), 9);
     const slow = ema(closes.slice(-60), 21);
     const priorFast = ema(closes.slice(-41,-1), 9);
@@ -243,17 +250,22 @@ if (sidebar && main) {
     // Use trend + RSI zone + price relative to the fast EMA. This allows a
     // controlled trend pullback instead of requiring EMA slope to rise on
     // every single candle, which can leave the demo stuck on WAIT.
-    const bullish = fast > slow && rsi >= 45 && rsi <= 72 && lastClose >= fast;
-    const bearish = fast < slow && rsi >= 28 && rsi <= 55 && lastClose <= fast;
-    const trend = fast > slow ? "EMA 9 above EMA 21" : fast < slow ? "EMA 9 below EMA 21" : "EMAs are level";
+    const bullishTrend = fast > slow;
+    const bearishTrend = fast < slow;
+    const bullish = bullishTrend && rsi >= 40 && rsi <= 78 && lastClose >= fast;
+    const bearish = bearishTrend && rsi >= 22 && rsi <= 60 && lastClose <= fast;
+    const trend = bullishTrend ? "EMA 9 above EMA 21" : bearishTrend ? "EMA 9 below EMA 21" : "EMAs are level";
     const momentum = fast > priorFast ? "short-term momentum rising" : fast < priorFast ? "short-term momentum falling" : "short-term momentum flat";
-    const indicators = trend + " · " + momentum + " · RSI 14: " + rsi.toFixed(1) + " · Close: " + lastClose;
-    if (bullish) return { side:"BUY", reason:"Uptrend confirmed by EMA 9/21; price is holding above EMA 9 and RSI is within the permitted trend-entry zone. Simulation signal only.", indicators };
-    if (bearish) return { side:"SELL", reason:"Downtrend confirmed by EMA 9/21; price is holding below EMA 9 and RSI is within the permitted trend-entry zone. Simulation signal only.", indicators };
-    let reason = "WAIT: trend, momentum and RSI do not currently agree.";
-    if (fast > slow && rsi > 75) reason += " Momentum may be overextended; avoid chasing.";
-    else if (fast < slow && rsi < 25) reason += " Downward momentum may be overextended; avoid chasing.";
-    return { side:"WAIT", reason, indicators };
+    const indicators = "Candles: " + validCandles.length + " · " + trend + " · " + momentum + " · RSI 14: " + rsi.toFixed(1) + " · Close: " + lastClose + " · EMA 9: " + fast.toPrecision(7);
+    if (bullish) return { side:"BUY", reason:"BUY setup: EMA 9 is above EMA 21, RSI is within the trend zone, and price is at/above EMA 9. Simulation only.", indicators };
+    if (bearish) return { side:"SELL", reason:"SELL setup: EMA 9 is below EMA 21, RSI is within the trend zone, and price is at/below EMA 9. Simulation only.", indicators };
+    const blockers = [];
+    if (!bullishTrend && !bearishTrend) blockers.push("EMAs are level");
+    if (bullishTrend && lastClose < fast) blockers.push("price is below EMA 9");
+    if (bearishTrend && lastClose > fast) blockers.push("price is above EMA 9");
+    if (bullishTrend && (rsi < 40 || rsi > 78)) blockers.push("RSI outside BUY zone (40–78)");
+    if (bearishTrend && (rsi < 22 || rsi > 60)) blockers.push("RSI outside SELL zone (22–60)");
+    return { side:"WAIT", reason:"WAIT: " + (blockers.length ? blockers.join("; ") : "no valid trend entry on the latest candle") + ".", indicators };
   }
 
   function renderDemoEngine() {
