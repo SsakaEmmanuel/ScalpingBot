@@ -239,13 +239,17 @@ if (sidebar && main) {
     const avgGain = changes.reduce((a,v)=>a+Math.max(0,v),0)/14;
     const avgLoss = changes.reduce((a,v)=>a+Math.max(0,-v),0)/14;
     const rsi = avgGain === 0 && avgLoss === 0 ? 50 : avgLoss === 0 ? 100 : 100 - 100/(1 + avgGain/avgLoss);
-    const bullish = fast > slow && fast > priorFast && rsi >= 50 && rsi <= 75;
-    const bearish = fast < slow && fast < priorFast && rsi >= 25 && rsi <= 50;
+    const lastClose = closes[closes.length - 1];
+    // Use trend + RSI zone + price relative to the fast EMA. This allows a
+    // controlled trend pullback instead of requiring EMA slope to rise on
+    // every single candle, which can leave the demo stuck on WAIT.
+    const bullish = fast > slow && rsi >= 45 && rsi <= 72 && lastClose >= fast;
+    const bearish = fast < slow && rsi >= 28 && rsi <= 55 && lastClose <= fast;
     const trend = fast > slow ? "EMA 9 above EMA 21" : fast < slow ? "EMA 9 below EMA 21" : "EMAs are level";
     const momentum = fast > priorFast ? "short-term momentum rising" : fast < priorFast ? "short-term momentum falling" : "short-term momentum flat";
-    const indicators = trend + " · " + momentum + " · RSI 14: " + rsi.toFixed(1);
-    if (bullish) return { side:"BUY", reason:"Bullish trend and rising momentum; RSI confirms the active-scalping filter. Simulation signal only.", indicators };
-    if (bearish) return { side:"SELL", reason:"Bearish trend and falling momentum; RSI confirms the active-scalping filter. Simulation signal only.", indicators };
+    const indicators = trend + " · " + momentum + " · RSI 14: " + rsi.toFixed(1) + " · Close: " + lastClose;
+    if (bullish) return { side:"BUY", reason:"Uptrend confirmed by EMA 9/21; price is holding above EMA 9 and RSI is within the permitted trend-entry zone. Simulation signal only.", indicators };
+    if (bearish) return { side:"SELL", reason:"Downtrend confirmed by EMA 9/21; price is holding below EMA 9 and RSI is within the permitted trend-entry zone. Simulation signal only.", indicators };
     let reason = "WAIT: trend, momentum and RSI do not currently agree.";
     if (fast > slow && rsi > 75) reason += " Momentum may be overextended; avoid chasing.";
     else if (fast < slow && rsi < 25) reason += " Downward momentum may be overextended; avoid chasing.";
@@ -303,7 +307,8 @@ if (sidebar && main) {
     if (demoState.dayKey !== today) { demoState.dayKey=today; demoState.dayStartBalance=demoState.balance; }
     const dailyLoss = demoState.dayStartBalance > 0 ? (demoState.dayStartBalance-demoState.balance)/demoState.dayStartBalance*100 : 100;
     if (dailyLoss >= dailyLimit) { demoState.enabled=false; demoState.pausedReason="Daily loss guard reached."; }
-    if (demoState.openTrade) {
+    const isNewCandle = candleId !== demoState.lastProcessedCandle;
+    if (isNewCandle && demoState.openTrade && demoState.openTrade.openCandleId !== candleId) {
       const t=demoState.openTrade, high=Number(last.high), low=Number(last.low);
       const stopHit=t.side==="BUY" ? low<=t.stop : high>=t.stop;
       const targetHit=t.side==="BUY" ? high>=t.target : low<=t.target;
@@ -318,14 +323,14 @@ if (sidebar && main) {
         demoState.openTrade=null;
       }
     }
-    if (demoState.enabled && candleId!==demoState.lastProcessedCandle && !demoState.openTrade && (latestSignal.side==="BUY" || latestSignal.side==="SELL")) {
+    if (demoState.enabled && isNewCandle && !demoState.openTrade && (latestSignal.side==="BUY" || latestSignal.side==="SELL")) {
       const entry=Number(last.close);
       const ranges=candles.slice(-15).map(c=>Number(c.high)-Number(c.low)).filter(v=>Number.isFinite(v)&&v>0);
       const stopDistance=ranges.reduce((a,b)=>a+b,0)/Math.max(1,ranges.length);
       const riskCash=demoState.balance*riskPercent/100;
       if (stopDistance>0 && riskCash>0) {
         const direction=latestSignal.side==="BUY"?1:-1;
-        const trade={id:String(Date.now()),symbol,side:latestSignal.side,entry,stop:entry-direction*stopDistance,target:entry+direction*stopDistance*1.5,riskCash,openedAt:new Date().toISOString(),status:"OPEN",reason:latestSignal.reason};
+        const trade={id:String(Date.now()),symbol,side:latestSignal.side,entry,stop:entry-direction*stopDistance,target:entry+direction*stopDistance*1.5,riskCash,openedAt:new Date().toISOString(),openCandleId:candleId,status:"OPEN",reason:latestSignal.reason};
         demoState.openTrade=trade; demoState.trades.push(trade);
       }
     }
