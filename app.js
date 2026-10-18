@@ -201,7 +201,11 @@ if (sidebar && main) {
   let scalpSettings = { symbol:"EURUSD", lot:0.01, stopPips:5, targetPips:8, riskPercent:1, intervalSeconds:1, dailyLimit:2, mode:"manual" };
 
   function scalpPipSize(symbol) { return symbol === "USDJPY" ? 0.01 : symbol === "XAUUSD" ? 0.1 : 0.0001; }
+  // Approximate pip value in account currency for risk preview only; actual value
+  // varies with broker contract size and conversion rates. Live orders remain disabled.
   function scalpPipValuePerLot(symbol) { return symbol === "XAUUSD" ? 1 : symbol === "USDJPY" ? 6.7 : 10; }
+  function scalpRiskBudget() { return demoState.balance * scalpSettings.riskPercent / 100; }
+  function scalpEstimatedRisk() { return scalpSettings.stopPips * scalpPipValuePerLot(scalpSettings.symbol) * scalpSettings.lot; }
   function readScalpSettings() {
     const value = id => document.getElementById(id);
     const num = (id, fallback) => { const el=value(id), n=el?Number(el.value):fallback; return Number.isFinite(n)&&n>0?n:fallback; };
@@ -262,7 +266,7 @@ if (sidebar && main) {
     get("demoClosedCount").textContent = String(closed.length);
     const wins = closed.filter(t=>Number(t.pnl)>0).length;
     get("demoWinRate").textContent = closed.length ? (wins/closed.length*100).toFixed(1)+"%" : "—";
-    get("demoRiskSummary").textContent = "Risk " + scalpSettings.riskPercent + "% · SL " + scalpSettings.stopPips + " pips · TP " + scalpSettings.targetPips + " pips · Lot " + scalpSettings.lot;
+    get("demoRiskSummary").textContent = "Risk budget ≈ $" + scalpRiskBudget().toFixed(2) + " · estimated stop risk ≈ $" + scalpEstimatedRisk().toFixed(2) + " · SL " + scalpSettings.stopPips + " pips · TP " + scalpSettings.targetPips + " pips · Lot " + scalpSettings.lot + ". Pip values are estimates; confirm broker contract specs.";
     get("demoStatus").textContent = demoState.enabled ? "AUTO PAPER MODE RUNNING · simulated positions only · broker orders disabled." : "Paper engine stopped. Live broker orders are disabled.";
     get("demoReason").textContent = demoState.openTrade ? "Open paper " + demoState.openTrade.side + " position. It will close when the configured stop-loss or take-profit price is reached." : (scalpSettings.mode === "manual" ? "Manual mode: choose Paper BUY or Paper SELL. No indicator gate is used." : "Auto paper mode uses the direction of the latest price change; it does not use EMA/RSI. A new position is considered only on an eligible feed update.");
     get("demoOpenTrade").textContent = demoState.openTrade ? ("Open paper " + demoState.openTrade.side + " " + demoState.openTrade.symbol + " · entry " + Number(demoState.openTrade.entry).toPrecision(7) + " · stop " + Number(demoState.openTrade.stop).toPrecision(7) + " · target " + Number(demoState.openTrade.target).toPrecision(7) + " · unrealized " + (demoState.openTrade.unrealizedPips||0).toFixed(1) + " pips") : "No open paper position.";
@@ -294,7 +298,7 @@ if (sidebar && main) {
       if(status) status.textContent="One paper position is already open. Close it before opening another.";
       return;
     }
-    const riskCash=demoState.balance*scalpSettings.riskPercent/100;
+    const riskCash=scalpRiskBudget();
     const pipSize=scalpPipSize(symbol);
     const direction=side==="BUY"?1:-1;
     const riskByLots=scalpSettings.stopPips*scalpPipValuePerLot(symbol)*scalpSettings.lot;
@@ -328,9 +332,17 @@ if (sidebar && main) {
     if(demoState.dayKey!==today){demoState.dayKey=today;demoState.dayStartBalance=demoState.balance;}
     const dailyLoss=demoState.dayStartBalance>0?(demoState.dayStartBalance-demoState.balance)/demoState.dayStartBalance*100:100;
     if(dailyLoss>=scalpSettings.dailyLimit){demoState.enabled=false;demoState.pausedReason="Daily loss limit reached."; }
-    if(demoState.enabled && !demoState.openTrade && scalpPreviousPrice!=null && Date.now()-scalpLastAutoEntryAt>=scalpSettings.intervalSeconds*1000) {
+    if(demoState.enabled && scalpSettings.mode==="auto" && !demoState.openTrade &&
+       symbol===scalpSettings.symbol && scalpPreviousPrice!=null &&
+       Date.now()-scalpLastAutoEntryAt>=scalpSettings.intervalSeconds*1000) {
+      // The current provider is polling candles every 30 seconds, not streaming ticks.
+      // Require a move of at least 1 pip to avoid entering on insignificant noise.
       const delta=price-scalpPreviousPrice;
-      if(delta!==0){openScalpPosition(delta>0?"BUY":"SELL",price,symbol);scalpLastAutoEntryAt=Date.now();}
+      const minimumMove=scalpPipSize(symbol);
+      if(Math.abs(delta)>=minimumMove) {
+        openScalpPosition(delta>0?"BUY":"SELL",price,symbol);
+        scalpLastAutoEntryAt=Date.now();
+      }
     }
     saveDemoState(); renderDemoEngine();
   }
@@ -437,6 +449,12 @@ if (sidebar && main) {
       updatedEl.textContent = "Fetched " + marketLastSuccessAt.toLocaleTimeString() + (data.exchangeTimezoneName ? " · Provider timezone: " + data.exchangeTimezoneName : "");
       lastMarketCandles = data.candles || [];
       drawMarketChart(lastMarketCandles);
+      const scalpSymbolControl = document.getElementById("scalpSymbol");
+      if (scalpSymbolControl && scalpSymbolControl.value !== symbol) {
+        // Keep the scalping panel's selected symbol authoritative on Demo Trading.
+        scalpSymbolControl.value = symbol;
+      }
+      handleScalpPrice(Number(data.price), symbol);
       processDemoCandles(lastMarketCandles, symbol);
     } catch (error) {
       const reason = error.name === "AbortError" ? "Request timed out" : error.message;
