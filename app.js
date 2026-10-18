@@ -400,11 +400,13 @@ if (sidebar && main) {
     const panel = document.getElementById("liveMarketPanel");
     if (!panel) return;
     const symbolControl = document.getElementById("marketSymbol");
+    const scalpSymbolControl = document.getElementById("scalpSymbol");
+    if (!symbolControl && scalpSymbolControl) { /* Demo-only fallback below uses the selected scalping symbol. */ }
     const priceEl = document.getElementById("marketPrice");
     const statusEl = document.getElementById("marketState");
     const updatedEl = document.getElementById("marketUpdated");
     const chart = document.getElementById("marketChart");
-    const symbol = symbolControl ? symbolControl.value : "EURUSD";
+    const symbol = symbolControl ? (document.getElementById("scalpSymbol") && document.getElementById("scalpSymbol").value || symbolControl.value) : (scalpSymbolControl ? scalpSymbolControl.value : "EURUSD");
     const timeframeControl = document.getElementById("marketTimeframe");
     const timeframe = timeframeControl ? timeframeControl.value : "5m";
     const labels = { EURUSD: "EUR/USD", GBPUSD: "GBP/USD", USDJPY: "USD/JPY", XAUUSD: "Gold (XAU/USD proxy)" };
@@ -679,7 +681,7 @@ if (sidebar && main) {
         const el=document.getElementById(id);
         if(el) el.addEventListener("change", () => {
           readScalpSettings();
-          if(id==="scalpSymbol") loadLiveMarketData();
+          if(id==="scalpSymbol") { const marketSymbol=document.getElementById("marketSymbol"); if(marketSymbol) marketSymbol.value=document.getElementById("scalpSymbol").value; loadLiveMarketData(); }
         });
       });
       if (document.getElementById("scalpBuy")) document.getElementById("scalpBuy").addEventListener("click", () => { readScalpSettings(); openScalpPosition("BUY",scalpLatestPrice,scalpSettings.symbol); });
