@@ -64,6 +64,7 @@ if (sidebar && main) {
         <div><small>Win rate</small><strong id="demoWinRate">—</strong></div>
       </div>
       <p id="demoReason" class="notice" role="status">Waiting for market candles to explain the current signal.</p>
+      <p id="demoIndicators" class="notice">Indicator details will appear when enough candles are available.</p>
       <p id="demoRiskSummary" class="notice">Demo risk: 0.5% per trade · Daily loss limit: 2.0%.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
         <button class="btn primary" id="demoStart" type="button">Start demo simulation</button>
@@ -222,19 +223,25 @@ if (sidebar && main) {
 
   function calculateSignal(candles) {
     const closes = (candles || []).map(c => Number(c.close)).filter(Number.isFinite);
-    if (closes.length < 30) return { side: "WAIT", reason: "Need at least 30 valid candles before EMA 9/21 and RSI 14 analysis." };
+    if (closes.length < 30) return { side: "WAIT", reason: "Need at least 30 valid candles before EMA 9/21 and RSI 14 analysis.", indicators: "Waiting for enough candles." };
     const fast = ema(closes.slice(-40), 9), slow = ema(closes.slice(-60), 21);
     const priorFast = ema(closes.slice(-41,-1), 9), priorSlow = ema(closes.slice(-61,-1), 21);
     const recent = closes.slice(-15);
     const changes = recent.slice(1).map((v,i)=>v-recent[i]);
     const avgGain = changes.reduce((a,v)=>a+Math.max(0,v),0)/14;
     const avgLoss = changes.reduce((a,v)=>a+Math.max(0,-v),0)/14;
-    const rsi = avgLoss === 0 ? 100 : 100 - 100/(1 + avgGain/avgLoss);
+    const rsi = avgLoss === 0 ? 100 : avgLoss === 0 && avgGain === 0 ? 50 : 100 - 100/(1 + avgGain/avgLoss);
+    const trend = fast > slow ? "EMA 9 is above EMA 21" : fast < slow ? "EMA 9 is below EMA 21" : "EMA 9 equals EMA 21";
+    const indicators = trend + " · RSI 14: " + rsi.toFixed(1);
     if (fast > slow && priorFast <= priorSlow && rsi >= 50 && rsi <= 70)
-      return { side:"BUY", reason:"EMA 9 crossed above EMA 21; RSI is " + rsi.toFixed(1) + " (within the 50–70 filter)." };
+      return { side:"BUY", reason:"Bullish crossover confirmed; RSI is within the 50–70 filter.", indicators };
     if (fast < slow && priorFast >= priorSlow && rsi >= 30 && rsi <= 50)
-      return { side:"SELL", reason:"EMA 9 crossed below EMA 21; RSI is " + rsi.toFixed(1) + " (within the 30–50 filter)." };
-    return { side:"NO TRADE", reason:"No fresh EMA crossover with confirming RSI. EMA 9 is " + (fast > slow ? "above" : "below") + " EMA 21; RSI " + rsi.toFixed(1) + "." };
+      return { side:"SELL", reason:"Bearish crossover confirmed; RSI is within the 30–50 filter.", indicators };
+    let reason = "WAIT: no fresh EMA crossover with confirming RSI.";
+    if (fast > slow && (rsi < 50 || rsi > 70)) reason += " RSI is outside the BUY filter.";
+    else if (fast < slow && (rsi < 30 || rsi > 50)) reason += " RSI is outside the SELL filter.";
+    else reason += " Waiting for a new crossover.";
+    return { side:"WAIT", reason, indicators };
   }
 
   function renderDemoEngine() {
@@ -243,6 +250,8 @@ if (sidebar && main) {
     signal.textContent = latestSignal.side;
     signal.style.color = latestSignal.side === "BUY" ? "#42d6ad" : latestSignal.side === "SELL" ? "#ff7185" : "var(--text)";
     document.getElementById("demoReason").textContent = latestSignal.reason;
+    const indicators = document.getElementById("demoIndicators");
+    if (indicators) indicators.textContent = latestSignal.indicators || "Indicator details will appear when enough candles are available.";
     const riskSummary = document.getElementById("demoRiskSummary");
     if (riskSummary) riskSummary.textContent = "Demo risk: " + demoRiskPercent.toFixed(2).replace(/0$/, "") + "% per trade · Daily loss limit: " + demoDailyLossLimit.toFixed(1) + "%.";
     document.getElementById("demoBalance").textContent = "$" + Number(demoState.balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
