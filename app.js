@@ -203,6 +203,12 @@ if (sidebar && main) {
     } catch (error) { console.warn("Demo state could not be loaded:", error); }
     demoStateLoaded = true;
     renderDemoEngine();
+    // Market data can arrive before local demo state finishes loading. Re-process
+    // the latest candles now so the signal does not remain stuck on its placeholder.
+    if (lastMarketCandles.length) {
+      const symbolControl = document.getElementById("marketSymbol");
+      processDemoCandles(lastMarketCandles, symbolControl ? symbolControl.value : "EURUSD");
+    }
   }
 
   function saveDemoState() {
@@ -276,7 +282,16 @@ if (sidebar && main) {
   }
 
   function processDemoCandles(candles, symbol) {
-    if (!demoStateLoaded || !candles || candles.length < 30) return;
+    if (!demoStateLoaded || !candles) return;
+    if (candles.length < 30) {
+      latestSignal = {
+        side: "WAIT",
+        reason: "Waiting for at least 30 candles; the feed currently supplied " + candles.length + ".",
+        indicators: "Not enough candles to calculate EMA 9/21 and RSI 14."
+      };
+      renderDemoEngine();
+      return;
+    }
     const last = candles[candles.length-1];
     const candleId = String(last.time || last.timestamp || last.date || "") + "|" + String(last.close);
     latestSignal = calculateSignal(candles);
@@ -416,6 +431,10 @@ if (sidebar && main) {
       feedState.textContent = marketLastSuccessAt ? "Feed reconnecting · last successful update " + marketLastSuccessAt.toLocaleTimeString() : "External feed disconnected";
       feedIndicator.style.background = "#ff7185";
       updatedEl.textContent = marketLastSuccessAt ? "Last successful update: " + marketLastSuccessAt.toLocaleString() : "No successful update yet.";
+      if (document.getElementById("demoSignal")) {
+        latestSignal = { side: "WAIT", reason: "Market feed unavailable; the demo engine cannot calculate a fresh signal until candle data returns.", indicators: "Waiting for market candle data." };
+        renderDemoEngine();
+      }
     } finally {
       marketRequestInProgress = false;
     }
