@@ -229,24 +229,26 @@ if (sidebar && main) {
 
   function calculateSignal(candles) {
     const closes = (candles || []).map(c => Number(c.close)).filter(Number.isFinite);
-    if (closes.length < 30) return { side: "WAIT", reason: "Need at least 30 valid candles before EMA 9/21 and RSI 14 analysis.", indicators: "Waiting for enough candles." };
-    const fast = ema(closes.slice(-40), 9), slow = ema(closes.slice(-60), 21);
-    const priorFast = ema(closes.slice(-41,-1), 9), priorSlow = ema(closes.slice(-61,-1), 21);
+    if (closes.length < 30) return { side: "WAIT", reason: "Need at least 30 valid candles before analysis.", indicators: "Candles available: " + closes.length + " / 30." };
+    const fast = ema(closes.slice(-40), 9);
+    const slow = ema(closes.slice(-60), 21);
+    const priorFast = ema(closes.slice(-41,-1), 9);
+    const priorSlow = ema(closes.slice(-61,-1), 21);
     const recent = closes.slice(-15);
     const changes = recent.slice(1).map((v,i)=>v-recent[i]);
     const avgGain = changes.reduce((a,v)=>a+Math.max(0,v),0)/14;
     const avgLoss = changes.reduce((a,v)=>a+Math.max(0,-v),0)/14;
-    const rsi = avgLoss === 0 ? 100 : avgLoss === 0 && avgGain === 0 ? 50 : 100 - 100/(1 + avgGain/avgLoss);
-    const trend = fast > slow ? "EMA 9 is above EMA 21" : fast < slow ? "EMA 9 is below EMA 21" : "EMA 9 equals EMA 21";
-    const indicators = trend + " · RSI 14: " + rsi.toFixed(1);
-    if (fast > slow && priorFast <= priorSlow && rsi >= 50 && rsi <= 70)
-      return { side:"BUY", reason:"Bullish crossover confirmed; RSI is within the 50–70 filter.", indicators };
-    if (fast < slow && priorFast >= priorSlow && rsi >= 30 && rsi <= 50)
-      return { side:"SELL", reason:"Bearish crossover confirmed; RSI is within the 30–50 filter.", indicators };
-    let reason = "WAIT: no fresh EMA crossover with confirming RSI.";
-    if (fast > slow && (rsi < 50 || rsi > 70)) reason += " RSI is outside the BUY filter.";
-    else if (fast < slow && (rsi < 30 || rsi > 50)) reason += " RSI is outside the SELL filter.";
-    else reason += " Waiting for a new crossover.";
+    const rsi = avgGain === 0 && avgLoss === 0 ? 50 : avgLoss === 0 ? 100 : 100 - 100/(1 + avgGain/avgLoss);
+    const bullish = fast > slow && fast > priorFast && rsi >= 50 && rsi <= 75;
+    const bearish = fast < slow && fast < priorFast && rsi >= 25 && rsi <= 50;
+    const trend = fast > slow ? "EMA 9 above EMA 21" : fast < slow ? "EMA 9 below EMA 21" : "EMAs are level";
+    const momentum = fast > priorFast ? "short-term momentum rising" : fast < priorFast ? "short-term momentum falling" : "short-term momentum flat";
+    const indicators = trend + " · " + momentum + " · RSI 14: " + rsi.toFixed(1);
+    if (bullish) return { side:"BUY", reason:"Bullish trend and rising momentum; RSI confirms the active-scalping filter. Simulation signal only.", indicators };
+    if (bearish) return { side:"SELL", reason:"Bearish trend and falling momentum; RSI confirms the active-scalping filter. Simulation signal only.", indicators };
+    let reason = "WAIT: trend, momentum and RSI do not currently agree.";
+    if (fast > slow && rsi > 75) reason += " Momentum may be overextended; avoid chasing.";
+    else if (fast < slow && rsi < 25) reason += " Downward momentum may be overextended; avoid chasing.";
     return { side:"WAIT", reason, indicators };
   }
 
