@@ -455,7 +455,6 @@ if (sidebar && main) {
         scalpSymbolControl.value = symbol;
       }
       handleScalpPrice(Number(data.price), symbol);
-      processDemoCandles(lastMarketCandles, symbol);
     } catch (error) {
       const reason = error.name === "AbortError" ? "Request timed out" : error.message;
       statusEl.textContent = "Live feed unavailable: " + reason + ". Retry automatically or tap Refresh prices.";
