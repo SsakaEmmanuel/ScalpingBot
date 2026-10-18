@@ -102,3 +102,43 @@ a.security-footer-link:focus-visible{outline:2px solid var(--green)}
 .footer-security-shortcut{width:100%;padding:16px 0;border-bottom:1px solid var(--border)}
 .footer-security-shortcut a{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-weight:700;text-decoration:none;padding:10px 0}
 .footer-security-shortcut a:hover,.footer-security-shortcut a:focus-visible{color:var(--green);text-decoration:underline;outline-offset:4px}
+
+
+/* Price-scalper controls: robust mobile layout, labels never overlap fields. */
+#demoEnginePanel .market-controls label{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:7px;
+  min-width:0;
+  line-height:1.35;
+  font-size:14px;
+  overflow-wrap:anywhere;
+}
+#demoEnginePanel .market-controls select,
+#demoEnginePanel .market-controls input{
+  box-sizing:border-box;
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  min-height:44px;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#0d1628;
+  color:var(--text);
+  font:inherit;
+}
+#demoEnginePanel .market-controls select{white-space:normal}
+#demoEnginePanel button{min-height:44px}
+#demoEnginePanel .demo-stats>div{min-width:0}
+#demoEnginePanel .demo-stats strong{overflow-wrap:anywhere}
+@media(max-width:520px){
+  #demoEnginePanel .market-controls{grid-template-columns:minmax(0,1fr)!important;gap:12px!important}
+  #demoEnginePanel .market-controls label{font-size:14px}
+  #demoEnginePanel .market-controls select,
+  #demoEnginePanel .market-controls input{font-size:16px}
+  #demoEnginePanel>div[style*="display:flex"]{align-items:stretch}
+  #demoEnginePanel>div[style*="display:flex"] button{flex:1 1 145px}
+}
