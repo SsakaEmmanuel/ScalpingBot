@@ -64,6 +64,7 @@ if (sidebar && main) {
         <div><small>Win rate</small><strong id="demoWinRate">—</strong></div>
       </div>
       <p id="demoReason" class="notice" role="status">Waiting for market candles to explain the current signal.</p>
+      <p id="demoRiskSummary" class="notice">Demo risk: 0.5% per trade · Daily loss limit: 2.0%.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
         <button class="btn primary" id="demoStart" type="button">Start demo simulation</button>
         <button class="btn outline" id="demoPause" type="button">Pause simulation</button>
@@ -160,7 +161,32 @@ if (sidebar && main) {
   let demoStorageKey = "scalpingbot-demo-v1-guest";
   let demoState = { balance: 10000, initialBalance: 10000, enabled: false, trades: [], openTrade: null, lastProcessedCandle: null, dayStartBalance: 10000, dayKey: new Date().toISOString().slice(0,10), pausedReason: "" };
   let demoStateLoaded = false;
+  let demoRiskPercent = 0.5;
+  let demoDailyLossLimit = 2;
   let latestSignal = { side: "WAIT", reason: "Waiting for market candles." };
+
+  async function loadDemoRiskSettings() {
+    const client = supabaseClient();
+    if (!client) return;
+    try {
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      if (!userData.user) return;
+      const { data, error } = await client.from("bot_settings")
+        .select("risk_percent, daily_loss_limit_percent")
+        .eq("user_id", userData.user.id).maybeSingle();
+      if (error) throw error;
+      if (data) {
+        const risk = Number(data.risk_percent);
+        const daily = Number(data.daily_loss_limit_percent);
+        if ([0.25, 0.5, 1].includes(risk)) demoRiskPercent = risk;
+        if ([1, 2, 3].includes(daily)) demoDailyLossLimit = daily;
+      }
+    } catch (error) {
+      console.warn("Saved demo risk settings could not be loaded; safe defaults remain active.", error);
+    }
+    renderDemoEngine();
+  }
 
   async function loadDemoState() {
     try {
@@ -217,6 +243,8 @@ if (sidebar && main) {
     signal.textContent = latestSignal.side;
     signal.style.color = latestSignal.side === "BUY" ? "#42d6ad" : latestSignal.side === "SELL" ? "#ff7185" : "var(--text)";
     document.getElementById("demoReason").textContent = latestSignal.reason;
+    const riskSummary = document.getElementById("demoRiskSummary");
+    if (riskSummary) riskSummary.textContent = "Demo risk: " + demoRiskPercent.toFixed(2).replace(/0$/, "") + "% per trade · Daily loss limit: " + demoDailyLossLimit.toFixed(1) + "%.";
     document.getElementById("demoBalance").textContent = "$" + Number(demoState.balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
     const closed = demoState.trades.filter(t=>t.status==="CLOSED");
     document.getElementById("demoClosedCount").textContent = String(closed.length);
@@ -243,8 +271,8 @@ if (sidebar && main) {
     const last = candles[candles.length-1];
     const candleId = String(last.time || last.timestamp || last.date || "") + "|" + String(last.close);
     latestSignal = calculateSignal(candles);
-    const riskPercent = Number(document.getElementById("settingsRisk")?.value || 0.5);
-    const dailyLimit = Number(document.getElementById("settingsDaily")?.value || 2);
+    const riskPercent = demoRiskPercent;
+    const dailyLimit = demoDailyLossLimit;
     const today = new Date().toISOString().slice(0,10);
     if (demoState.dayKey !== today) { demoState.dayKey=today; demoState.dayStartBalance=demoState.balance; }
     const dailyLoss = demoState.dayStartBalance > 0 ? (demoState.dayStartBalance-demoState.balance)/demoState.dayStartBalance*100 : 100;
@@ -617,6 +645,7 @@ if (sidebar && main) {
       });
       if (name === "Overview" || name === "Demo Trading") {
         loadDemoState();
+        loadDemoRiskSettings();
         demoUiRefreshTimer = setInterval(renderDemoEngine, 1000);
       }
       if (name === "Overview" || name === "Market Analysis" || name === "Demo Trading") {
