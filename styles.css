@@ -96,3 +96,9 @@ a.security-footer-link:focus-visible{outline:2px solid var(--green)}
 .security-details-page .security h2{font-size:clamp(28px,4vw,42px)}
 .security-details-page .workspace-links{display:flex}
 @media(max-width:900px){.security-details-page .topbar nav.workspace-links{display:flex!important}}
+
+
+/* Compact footer shortcut; full security content is on security.html. */
+.footer-security-shortcut{width:100%;padding:16px 0;border-bottom:1px solid var(--border)}
+.footer-security-shortcut a{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-weight:700;text-decoration:none;padding:10px 0}
+.footer-security-shortcut a:hover,.footer-security-shortcut a:focus-visible{color:var(--green);text-decoration:underline;outline-offset:4px}
