@@ -55,8 +55,15 @@ if (sidebar && main) {
 
   const demoPanelHTML = () => `
     <div class="panel" id="demoEnginePanel">
-      <h3>Price-driven scalping engine <span class="tag">PAPER TRADING</span></h3>
-      <p>Manual or rule-based paper trading using the latest available market price. No EMA/RSI indicators. Live broker orders are disabled until a broker connection is configured and tested.</p>
+      <h3>ScalpingBot Trading Engine <span class="tag">MODE SELECTOR</span></h3>
+      <p>Choose your preferred mode. Demo mode simulates trades. Live mode is a preference only until a secure, tested broker connection is available; this interface cannot place live orders yet.</p>
+      <label>Account mode
+        <select id="accountTradingMode">
+          <option value="demo" selected>Demo / Paper trading</option>
+          <option value="live">Live account (requires connection)</option>
+        </select>
+      </label>
+      <div id="accountModeNotice" class="notice" role="status">Demo mode selected. Simulated trades only; no broker orders are sent.</div>
       <div class="demo-stats">
         <div><small>Latest indicative price</small><strong id="scalpPrice">Waiting for feed</strong></div>
         <div><small>Paper balance</small><strong id="demoBalance">$10,000.00</strong></div>
@@ -107,6 +114,28 @@ if (sidebar && main) {
       <p><small>Price source refreshes on the existing feed schedule (currently 30 seconds). This is not suitable for true tick-scalping; a broker streaming quote connection is required for that.</small></p>
     </div>
   `;
+
+  const initAccountModeSelector = () => {
+    const selector = document.querySelector("#accountTradingMode");
+    const notice = document.querySelector("#accountModeNotice");
+    if (!selector || !notice || selector.dataset.bound === "true") return;
+    selector.dataset.bound = "true";
+    const key = "scalpingbot-trading-mode-preference-v1";
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved === "demo" || saved === "live") selector.value = saved;
+    } catch (_) {}
+    const render = () => {
+      const liveChosen = selector.value === "live";
+      notice.classList.toggle("sb-live-mode-notice", liveChosen);
+      notice.textContent = liveChosen
+        ? "LIVE MODE SELECTED — preference saved. Trading is NOT active: broker connection, account-specific risk checks, explicit final confirmation, and verified order/stop-loss handling are not implemented. No live orders can be sent from this app yet."
+        : "DEMO MODE SELECTED — paper simulation only. No broker orders are sent.";
+      try { localStorage.setItem(key, selector.value); } catch (_) {}
+    };
+    selector.addEventListener("change", render);
+    render();
+  };
 
   const marketPanelHTML = () => `
     <div class="panel" id="liveMarketPanel">
@@ -166,6 +195,7 @@ if (sidebar && main) {
     </div>
   `;
 
+  const originalRender = window.renderDashboardPanel;
   const panels = {
     "Overview": () => originalMainHTML + `
       <div class="panel" id="overviewSavedConfig">
