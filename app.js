@@ -679,6 +679,7 @@ if (sidebar && main) {
     navItems.forEach(nav => nav.classList.remove("active"));
     item.classList.add("active");
     main.innerHTML = panels[name]();
+    initAccountModeSelector();
 
     if (marketRefreshTimer) {
       clearInterval(marketRefreshTimer);
