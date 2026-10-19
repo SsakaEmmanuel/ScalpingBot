@@ -40,6 +40,52 @@
 <section class="metrics"><div><strong>0.5%</strong><span>Proposed risk per trade</span></div><div><strong>2.0%</strong><span>Proposed daily loss guard</span></div><div><strong>OFF</strong><span>Live trading</span></div><div><strong>EARLY</strong><span>Prototype status</span></div></section>
 <section class="section" id="features"><div class="eyebrow">BUILT AROUND CONTROL</div><h2>Everything in view. <span class="gradient">Risk first.</span></h2>
 <div class="features"><article><b>⌁ Strategy monitoring</b><p>Prepare EMA and RSI strategy status, signals, and market-data integration.</p><span class="tag">Integration pending</span></article><article><b>◈ Risk controls</b><p>Plan stop-loss, take-profit, spread filters, trade limits and daily loss guardrails.</p><span class="tag">UI prototype</span></article><article><b>⏱ MT5 connection</b><p>Connect to a separately running Windows MT5 terminal through an authenticated bridge.</p><span class="tag">Not connected</span></article><article><b>▤ Trade journal</b><p>Review orders, outcomes, costs, and strategy performance.</p><span class="tag">Sample view</span></article></div></section>
+<section class="section sb-events-section" id="bot-events">
+  <div class="eyebrow">BOT EVENTS · EXPLAINABLE RULES</div>
+  <h2>How <span class="gradient">our bot thinks</span></h2>
+  <p class="lead">A transparent preview of the checks planned for ScalpingBot. These are strategy specifications, not proof of live execution or profitability.</p>
+  <div class="sb-event-grid">
+    <article class="sb-event-card sb-event-wide">
+      <div class="sb-event-title"><span class="sb-event-icon blue">⌁</span><div><h3>Dual-Strategy Engine</h3><p>Choose a strategy profile for testing.</p></div><span class="tag">Planned</span></div>
+      <div class="sb-mode-grid">
+        <div><small>SCALP MODE</small><p>Shorter-timeframe entries with a higher-timeframe trend check before a signal can be considered.</p><span class="sb-event-state">M1 / M5 · Demo testing</span></div>
+        <div><small>SWING MODE</small><p>Slower entries with a wider trend context and longer holding assumptions.</p><span class="sb-event-state">M15 / H1 · Demo testing</span></div>
+      </div>
+      <p class="sb-event-note">No order is sent while the MT5 bridge is disconnected.</p>
+    </article>
+    <article class="sb-event-card">
+      <div class="sb-event-title"><span class="sb-event-icon yellow">⬡</span><div><h3>Built-in Risk Engine</h3><p>Risk limits to validate before entry.</p></div></div>
+      <div class="sb-rule"><b>Position sizing</b><span>Use balance, stop distance and broker contract values; never guess pip value.</span></div>
+      <div class="sb-rule"><b>Stop-loss and target</b><span>Reject invalid stop/target geometry and review risk-to-reward.</span></div>
+      <div class="sb-rule"><b>Daily loss guard</b><span>Block new demo entries when the configured daily loss limit is reached.</span></div>
+    </article>
+    <article class="sb-event-card">
+      <div class="sb-event-title"><span class="sb-event-icon blue">◎</span><div><h3>Signal Confidence</h3><p>Explain why a setup passes or fails.</p></div></div>
+      <div class="sb-score-list"><div><span>Trend alignment</span><span>Required check</span></div><div><span>Entry candle</span><span>Required check</span></div><div><span>Risk / reward</span><span>Required check</span></div><div><span>Volatility &amp; spread</span><span>Data needed</span></div><div><span>Volume / structure</span><span>Data needed</span></div></div>
+      <p class="sb-event-note">A confidence score is a rule-based estimate, not an AI guarantee or win-rate prediction.</p>
+    </article>
+    <article class="sb-event-card sb-event-wide">
+      <div class="sb-event-title"><span class="sb-event-icon yellow">✓</span><div><h3>Trade Quality Gate</h3><p>Illustrative pre-trade checklist.</p></div><span class="tag">Not live</span></div>
+      <div class="sb-gates-grid">
+        <div><i>01</i><b>Market data</b><span>Fresh, valid candles</span></div>
+        <div><i>02</i><b>Trend filter</b><span>Timeframes agree</span></div>
+        <div><i>03</i><b>Spread check</b><span>Broker costs known</span></div>
+        <div><i>04</i><b>Volatility</b><span>Conditions acceptable</span></div>
+        <div><i>05</i><b>Risk sizing</b><span>Within limits</span></div>
+        <div><i>06</i><b>Execution state</b><span>Demo bridge healthy</span></div>
+      </div>
+    </article>
+    <article class="sb-event-card sb-event-wide">
+      <div class="sb-event-title"><span class="sb-event-icon blue">◷</span><div><h3>Bot Event Log</h3><p>Sample events showing how status messages will look.</p></div><span class="sb-demo-label"><span class="sb-status-dot"></span> SIMULATED</span></div>
+      <div class="sb-log-list">
+        <div><span class="sb-log-time">EVENT 01</span><b>Market scan requested</b><span>Waiting for verified MT5 market data.</span><em>Pending connection</em></div>
+        <div><span class="sb-log-time">EVENT 02</span><b>Risk check</b><span>Position size cannot be calculated without broker contract details.</span><em class="yellow-text">Safety block</em></div>
+        <div><span class="sb-log-time">EVENT 03</span><b>Order execution</b><span>Order routing is disabled until demo bridge tests pass.</span><em class="yellow-text">Locked</em></div>
+      </div>
+    </article>
+  </div>
+  <div class="sb-events-footer"><span class="sb-status-dot"></span><b>Current system state: demo-only prototype</b><span>MT5 not connected · Live orders disabled</span></div>
+</section>
 <section class="dashboard-section" id="dashboard"><div class="dash-title"><div><div class="eyebrow">PRIVATE WORKSPACE</div><h2>Bot control center</h2><p id="authStatus">Checking authentication…</p></div><span class="pill amber">DEMO ONLY · LOCKED</span></div>
 <div id="signedOutPanel" class="panel auth-gate"><h3>Sign in to view your private dashboard</h3><p>The dashboard is available after you sign in. Create an account or sign in to continue.</p><button class="btn primary" id="gateSignIn">Sign in</button> <button class="btn outline" id="gateSignUp">Create account</button></div>
 <div id="privateDashboard" class="dashboard hidden"><aside><b class="active">▦ Overview</b><b>⌁ Market Analysis</b><b>◈ Demo Trading</b><b>▤ Trade history</b><b>◉ Account status</b><b>⚙ Settings</b><div class="offline">Terminal<br><strong>Not connected</strong></div></aside>
