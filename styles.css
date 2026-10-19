@@ -268,3 +268,7 @@ footer{border-color:#263b5b}
  .sb-log-list em{grid-column:2;grid-row:1;text-align:right}
  .sb-events-footer>span:last-child{width:100%;margin-left:19px}
 }
+
+/* Trading mode preference: selecting Live never bypasses missing broker safeguards. */
+#accountTradingMode{display:block;width:100%;max-width:none;margin:10px 0 12px;padding:12px;border:1px solid #087cff70;background:#0b1627;color:#eef4ff;border-radius:10px}
+#accountModeNotice.sb-live-mode-notice{border:1px solid #ffd21f75;background:rgba(255,210,31,.09);color:#ffe58a;padding:14px;line-height:1.8}
