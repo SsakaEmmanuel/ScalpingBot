@@ -142,3 +142,63 @@ a.security-footer-link:focus-visible{outline:2px solid var(--green)}
   #demoEnginePanel>div[style*="display:flex"]{align-items:stretch}
   #demoEnginePanel>div[style*="display:flex"] button{flex:1 1 145px}
 }
+
+
+/* ScalpingBot blue-and-yellow mobile-first visual refresh */
+:root{--sb-blue:#087cff;--sb-yellow:#ffd21f;--sb-glow:rgba(8,124,255,.22)}
+body{background:radial-gradient(ellipse at 50% -8%,rgba(8,124,255,.19),transparent 43%),radial-gradient(ellipse at 90% 30%,rgba(255,210,31,.045),transparent 32%),#070d18}
+.topbar{background:rgba(7,13,24,.94);backdrop-filter:blur(14px);border-bottom:1px solid rgba(8,124,255,.16)}
+.brand-mark{background:linear-gradient(140deg,#087cff,#073b9c);color:#fff;box-shadow:0 0 22px rgba(8,124,255,.22)}
+.accent{color:var(--sb-blue)}
+.primary{background:linear-gradient(105deg,#087cff,#0751d8);color:#fff;box-shadow:0 7px 24px rgba(8,124,255,.2)}
+.primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.outline:hover{border-color:#087cff}
+.hero.sb-home-hero{grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);gap:clamp(28px,5vw,76px);padding-top:54px;padding-bottom:62px;min-height:620px}
+.sb-hero-copy{min-width:0}
+.sb-brand-emblem{width:76px;height:76px;display:grid;place-items:center;border:1px solid #087cff;border-radius:23px;background:linear-gradient(145deg,#101e35,#07101f);color:#087cff;font-size:47px;font-weight:900;box-shadow:0 0 0 7px rgba(8,124,255,.06),0 0 38px rgba(8,124,255,.2);margin:0 0 25px}
+.sb-home-hero .eyebrow{color:#ffd21f}
+.sb-home-hero h1{font-size:clamp(39px,5vw,66px);letter-spacing:-2.6px;line-height:1.08;margin:18px 0}
+.sb-home-hero .gradient{background:linear-gradient(100deg,#087cff,#42a0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sb-home-hero .lead{font-size:clamp(15px,1.5vw,18px);line-height:1.75}
+.sb-feature-chips{display:flex;flex-wrap:wrap;gap:9px;margin:23px 0 5px}
+.sb-feature-chips span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(8,124,255,.55);border-radius:24px;background:rgba(8,124,255,.07);color:#dce9ff;font-size:12px}
+.sb-honesty-note{display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:#a8b7ce;font-size:11px;margin-top:25px}
+.sb-status-dot{display:inline-block;flex:0 0 9px;width:9px;height:9px;border-radius:50%;background:#ffd21f;box-shadow:0 0 0 4px rgba(255,210,31,.1)}
+.sb-hero-preview{min-width:0;align-self:center;padding:22px;border-radius:22px;border:1px solid rgba(8,124,255,.32);background:linear-gradient(145deg,rgba(15,29,50,.97),rgba(7,14,26,.98));box-shadow:0 18px 65px rgba(0,0,0,.28),0 0 45px rgba(8,124,255,.08)}
+.sb-preview-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.sb-preview-top small,.sb-preview-balance small,.sb-preview-markets small{color:#91a4c1;font-size:10px;letter-spacing:.7px}
+.sb-preview-top h3{margin:4px 0;font-size:18px}
+.sb-version{display:inline-flex;align-items:center;gap:8px;border:1px solid #263b5c;border-radius:10px;padding:8px 10px;font-size:11px;color:#d9e5f7}
+.sb-preview-balance{margin-top:25px;padding:19px;border-radius:14px;background:linear-gradient(120deg,rgba(8,124,255,.15),rgba(8,124,255,.025));border:1px solid rgba(8,124,255,.18)}
+.sb-preview-balance small,.sb-preview-balance strong,.sb-preview-balance span{display:block}
+.sb-preview-balance strong{font-size:34px;letter-spacing:1px;margin:7px 0;color:#f5f8ff}
+.sb-preview-balance span{font-size:11px;color:#98aac5;line-height:1.6}
+.sb-preview-chart{position:relative;overflow:hidden;margin:16px 0 12px;padding:8px 0 0}
+.sb-chart-grid{position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 35px,rgba(111,145,193,.13) 36px),repeating-linear-gradient(to right,transparent 0,transparent 54px,rgba(111,145,193,.08) 55px)}
+.sb-preview-chart svg{position:relative;display:block;width:100%;height:auto}
+.sb-preview-markets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sb-preview-markets>div{min-width:0;padding:11px;border:1px solid #223552;border-radius:10px;background:#0a1323}
+.sb-preview-markets small,.sb-preview-markets b,.sb-preview-markets span{display:block;overflow-wrap:anywhere}
+.sb-preview-markets b{font-size:11px;margin:7px 0;color:#cbd7ea}
+.sb-preview-markets span{font-size:10px;color:#ffd21f}
+.sb-preview-foot{display:flex;align-items:center;gap:9px;flex-wrap:wrap;border-top:1px solid #20314a;margin-top:16px;padding-top:15px;font-size:11px}
+.sb-preview-foot b{color:#f0f5ff}
+.sb-preview-foot>span:last-child{margin-left:auto;color:#8fa1bd}
+.metrics{background:rgba(12,22,39,.82);border-color:#263b5b}
+.metrics div{border-color:#263b5b}
+.metrics strong{color:#f4f7ff}
+.metrics span{color:#9eafc8}
+.chart-card,.panel,.features article{background:linear-gradient(145deg,#111f35,#0a1323);border-color:#263b5b}
+.pill,.tag{color:#ffd21f;border-color:rgba(255,210,31,.3);background:rgba(255,210,31,.06)}
+.amber,.amber-text{color:#ffd21f!important;border-color:rgba(255,210,31,.32)}
+.dashboard{background:#091321;border-color:#263b5b}
+.dashboard aside{background:#08111f;border-color:#263b5b}
+.dashboard aside .active{background:rgba(8,124,255,.14);color:#58a5ff}
+.cards>div{background:#101d31;border-color:#263b5b}
+.panel{box-shadow:0 8px 28px rgba(0,0,0,.12)}
+select{border-color:#2a4164}
+.notice{background:rgba(8,124,255,.08);color:#b6c9e8}
+.security li:before{color:#ffd21f}
+footer{border-color:#263b5b}
+@media(max-width:900px){.hero.sb-home-hero{grid-template-columns:1fr;gap:35px;padding:38px 5vw 45px;min-height:unset}.sb-hero-copy{max-width:760px}.sb-brand-emblem{width:64px;height:64px;font-size:40px;border-radius:20px;margin-bottom:20px}.sb-hero-preview{width:100%;max-width:720px;margin:0 auto}}
+@media(max-width:650px){.hero.sb-home-hero{padding:28px 16px 35px;gap:25px}.sb-home-hero h1{font-size:clamp(37px,10vw,48px);letter-spacing:-1.7px}.sb-home-hero .lead{font-size:15px}.sb-feature-chips{gap:7px}.sb-feature-chips span{font-size:11px;padding:7px 9px}.sb-hero-preview{padding:15px;border-radius:17px}.sb-preview-balance{padding:15px}.sb-preview-balance strong{font-size:30px}.sb-preview-markets{gap:6px}.sb-preview-markets>div{padding:8px}.sb-preview-markets b{font-size:10px}.sb-preview-foot>span:last-child{margin-left:0;width:100%}}
