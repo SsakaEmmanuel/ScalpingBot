@@ -25,10 +25,11 @@
 <label for="marketType">Market</label><select id="marketType"><option value="forex">Forex (demo)</option><option value="otc">Pocket Option OTC (simulation only)</option></select>
 <label for="asset">Asset</label><select id="asset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>EUR/JPY</option><option>Gold (XAU/USD)</option></select>
 <label for="expiry">Signal expiry</label><select id="expiry"><option value="60">1 minute</option></select>
-<label for="dataMode">Candle source</label><select id="dataMode"><option value="simulation">Synthetic demo candles</option><option value="manual">Enter recent candle closes</option></select>
+<label for="dataMode">Candle source</label><select id="dataMode"><option value="simulation">Synthetic demo candles</option><option value="manual">Enter recent candle closes</option><option value="live">Live forex candles (Twelve Data)</option></select>
+<div id="apiBox" hidden><label for="marketApiKey">Twelve Data API key</label><input id="marketApiKey" type="password" autocomplete="off" placeholder="Paste your key here"><button class="btn outline full" id="saveMarketKey" type="button">Save key on this device</button><p class="small-note">The key is stored in this browser's local storage and is visible to anyone who can inspect this page in your browser. Do not use a sensitive or paid key in a public/shared device.</p></div>
 <div id="manualBox" hidden><label for="manualCloses">Recent closes, oldest to newest (comma-separated numbers; at least 8)</label><textarea id="manualCloses" rows="3" placeholder="1.0840, 1.0842, 1.0841, ..."></textarea></div>
 <button class="btn primary full" id="analyzeBtn" type="button">Analyze for signal</button>
-<p class="small-note">Manual prices are user-provided, not independently verified. Live quote providers and OTC feeds are not connected.</p>
+<div class="signal-status" id="feedStatus">Synthetic demo candles only — not live market data.</div><p class="small-note">Forex candles are supplied by Twelve Data when selected. OTC prices are not provided by this feed. Market data may be delayed and can differ from Pocket Option.</p>
 </section>
 <section class="signal-card">
 <h3>Latest signal</h3>
@@ -71,11 +72,11 @@
   const storageKey = "pocketSignalLab-v1";
   const fmt = n => Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   function load() {
-    try { const saved = JSON.parse(localStorage.getItem(storageKey)||"{}"); if(Array.isArray(saved.journal)) state.journal=saved.journal; if(saved.day===state.day){state.dailyCount=saved.dailyCount||0;state.dailyLoss=saved.dailyLoss||0;} $("telegramWebhook").value=saved.webhook||""; } catch(e) {}
+    try { const saved = JSON.parse(localStorage.getItem(storageKey)||"{}"); if(Array.isArray(saved.journal)) state.journal=saved.journal; if(saved.day===state.day){state.dailyCount=saved.dailyCount||0;state.dailyLoss=saved.dailyLoss||0;} $("telegramWebhook").value=saved.webhook||""; $("marketApiKey").value=saved.marketApiKey||""; } catch(e) {}
     renderJournal(); updateRisk();
   }
   function persist() {
-    try { localStorage.setItem(storageKey,JSON.stringify({journal:state.journal,day:state.day,dailyCount:state.dailyCount,dailyLoss:state.dailyLoss,webhook:$("telegramWebhook").value.trim()})); } catch(e) {}
+    try { localStorage.setItem(storageKey,JSON.stringify({journal:state.journal,day:state.day,dailyCount:state.dailyCount,dailyLoss:state.dailyLoss,webhook:$("telegramWebhook").value.trim(),marketApiKey:$("marketApiKey").value.trim()})); } catch(e) {}
   }
   function riskStatus() {
     const balance=Math.max(0,Number($("demoBalanceInput").value)||0), pct=Number($("riskPct").value)||0.5, limit=Number($("dailyLimit").value)||2;
