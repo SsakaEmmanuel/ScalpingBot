@@ -501,9 +501,9 @@ if (sidebar && main) {
         if (el && el.dataset.bound !== "true") { el.dataset.bound = "true"; el.addEventListener("click", handler); }
       };
       bindButton("saveMt5Bridge", async () => {
-        const base = (bridgeUrlInput?.value || "").trim().replace(/\\/+$/, "");
+        const base = (bridgeUrlInput?.value || "").trim().replace(/\/+$/, "");
         const key = (bridgeKeyInput?.value || "").trim();
-        if (!/^https:\\/\\//i.test(base) || !key) {
+        if (!/^https:\/\//i.test(base) || !key) {
           if (bridgeStatus) bridgeStatus.textContent = "Enter an HTTPS bridge address and your API key. Do not use a public unprotected server.";
           return;
         }
