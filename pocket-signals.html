@@ -125,22 +125,53 @@
       try { const u=new URL(url); if(u.protocol!=="https:") throw new Error("HTTPS required"); fetch(u.href,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:msg,signal:{asset:signal.asset,market:signal.market,side:signal.side,expirySeconds:60,score:signal.score,source:signal.source,createdAt:signal.createdAt}}),mode:"cors"}).then(r=>{if(!r.ok) throw new Error("Relay returned "+r.status);$("alertStatus").textContent="Telegram relay accepted the alert.";}).catch(()=>{$("alertStatus").textContent="Telegram relay failed. Check the HTTPS endpoint, CORS, and server logs.";}); } catch(e) { $("alertStatus").textContent="Telegram relay URL must be a valid HTTPS URL."; }
     }
   }
-  function analyze() {
+  async function fetchLiveForexCandles() {
+    const key=$("marketApiKey").value.trim();
+    if(!key) throw new Error("Enter your Twelve Data API key first.");
+    const pairMap={"EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","AUD/USD":"AUD/USD","EUR/JPY":"EUR/JPY","Gold (XAU/USD)":"XAU/USD"};
+    const pair=pairMap[$("asset").value]||"EUR/USD";
+    const url="https://api.twelvedata.com/time_series?symbol="+encodeURIComponent(pair)+"&interval=1min&outputsize=30&apikey="+encodeURIComponent(key);
+    const response=await fetch(url);
+    if(!response.ok) throw new Error("Market-data provider returned HTTP "+response.status+".");
+    const data=await response.json();
+    if(data.status==="error"||!Array.isArray(data.values)) throw new Error(data.message||"No candle data returned. Check API key, quota, symbol and provider access.");
+    const candles=data.values.slice().reverse().map(v=>({open:Number(v.open),close:Number(v.close),time:v.datetime})).filter(v=>Number.isFinite(v.open)&&Number.isFinite(v.close)&&v.open>0&&v.close>0);
+    if(candles.length<8) throw new Error("Provider returned fewer than 8 valid candles.");
+    $("feedStatus").textContent="Forex candles received from Twelve Data. Latest candle: "+(data.values[0].datetime||"time unavailable")+". Quotes may be delayed and can differ from Pocket Option.";
+    return candles;
+  }
+  async function analyze() {
     const source=$("dataMode").value, closesInput=$("manualCloses").value;
     let candles;
-    if(source==="manual") {
-      const closes=closesInput.split(",").map(x=>Number(x.trim())).filter(x=>Number.isFinite(x)&&x>0);
-      if(closes.length<8){alert("Enter at least 8 valid positive closing prices, oldest to newest.");return;}
-      candles=candlesFromCloses(closes);
-    } else candles=syntheticCandles();
-    const res=scoreSignal(candles), market=$("marketType").value==="otc"?"OTC simulation":"Forex demo";
-    state.signal={side:res.side,score:res.score,reason:res.reason,asset:$("asset").value,market,source:source==="manual"?"User-entered closes":"Synthetic demo candles",createdAt:new Date().toISOString()};
+    $("analyzeBtn").disabled=true; $("feedStatus").textContent="Loading candle data…";
+    try {
+      if(source==="manual") {
+        const closes=closesInput.split(",").map(x=>Number(x.trim())).filter(x=>Number.isFinite(x)&&x>0);
+        if(closes.length<8) throw new Error("Enter at least 8 valid positive closing prices, oldest to newest.");
+        candles=candlesFromCloses(closes);
+      } else if(source==="live") {
+        if($("marketType").value==="otc") throw new Error("Twelve Data supplies forex market data, not Pocket Option OTC prices. Switch to Forex or choose simulation/manual candles.");
+        candles=await fetchLiveForexCandles();
+      } else {
+        candles=syntheticCandles();
+        $("feedStatus").textContent="Synthetic demo candles only — not live market data.";
+      }
+    } catch(error) {
+      $("feedStatus").textContent="Feed error: "+error.message;
+      $("signalSide").textContent="NO SIGNAL"; $("signalSide").className="signal-side neutral";
+      $("signalReason").textContent="No signal generated because reliable candle data was not available.";
+      $("analyzeBtn").disabled=false; return;
+    }
+    const res=scoreSignal(candles), market=$("marketType").value==="otc"?"OTC simulation":source==="live"?"Forex · Twelve Data":"Forex demo";
+    const sourceLabel=source==="manual"?"User-entered closes":source==="live"?"Twelve Data 1-minute candles":"Synthetic demo candles";
+    state.signal={side:res.side,score:res.score,reason:res.reason,asset:$("asset").value,market,source:sourceLabel,createdAt:new Date().toISOString()};
     $("signalSide").textContent=res.side==="NONE"?"NO SIGNAL":res.side;
     $("signalSide").className="signal-side "+(res.side==="CALL"?"call":res.side==="PUT"?"put":"neutral");
     $("signalAsset").textContent=state.signal.asset+" · "+market;
     $("confidenceChip").textContent="Setup score: "+res.score+"/90";
     $("signalReason").textContent=res.reason;
     $("signalTime").textContent=new Date().toLocaleString()+" · "+state.signal.source;
+    $("analyzeBtn").disabled=false;
     if(res.side!=="NONE") {
       if(state.dailyCount>=Number($("maxSignals").value)){ $("signalReason").textContent="Daily demo entry cap reached. "+res.reason; }
       else if(riskStatus().blocked) { $("signalReason").textContent="Risk lock active: daily entry cap or daily loss limit reached. No new demo entry should be logged. "+res.reason; }
@@ -160,7 +191,9 @@
     $("journalCount").textContent=state.journal.length; $("winCount").textContent=wins; $("lossCount").textContent=losses; $("winRate").textContent=done.length?Math.round(wins/done.length*100)+"%":"—";
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-  $("dataMode").addEventListener("change",()=>{$("manualBox").hidden=$("dataMode").value!=="manual";});
+  $("dataMode").addEventListener("change",()=>{$("manualBox").hidden=$("dataMode").value!=="manual";$("apiBox").hidden=$("dataMode").value!=="live";$("feedStatus").textContent=$("dataMode").value==="live"?"Live forex feed selected. Add a Twelve Data API key. OTC prices are not available from this forex feed.":$("dataMode").value==="manual"?"Manual prices selected; values are not independently verified.":"Synthetic demo candles only — not live market data.";});
+  $("marketType").addEventListener("change",()=>{if($("marketType").value==="otc"&&$("dataMode").value==="live")$("feedStatus").textContent="OTC selected: live forex feed is not applicable. Switch to simulation or manual candles.";});
+  $("saveMarketKey").addEventListener("click",()=>{persist();$("feedStatus").textContent=$("marketApiKey").value.trim()?"Feed key saved on this device. Try Analyze for signal.":"No API key entered yet.";});
   $("analyzeBtn").addEventListener("click",analyze);
   $("copySignal").addEventListener("click",async()=>{if(!state.signal){alert("Analyze first.");return;}const s=state.signal;const msg="Pocket Signal Lab (DEMO)\n"+s.asset+" / "+s.market+"\n"+s.side+" · 1 minute · setup score "+s.score+"/90\n"+s.reason+"\nSource: "+s.source+"\nNot a win probability. Verify market data.";try{await navigator.clipboard.writeText(msg);$("alertStatus").textContent="Signal copied. You can paste it into Telegram."; }catch(e){prompt("Copy this signal text:",msg);}});
   $("markPaper").addEventListener("click",()=>{if(!state.signal){alert("Analyze a setup first.");return;}if(riskStatus().blocked){alert("Risk lock active: daily demo entry cap or estimated daily loss limit reached. Stop testing for today.");return;}const s=state.signal;state.journal.push({id:String(Date.now()),time:new Date().toISOString(),asset:s.asset,market:s.market,side:s.side,source:s.source,result:"pending"});state.dailyCount++;persist();renderJournal();updateRisk();$("alertStatus").textContent="Signal logged as a demo idea. Mark its outcome later; do not treat it as a placed trade.";});
