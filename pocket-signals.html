@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1020">
+<title>Pocket Option Signal Lab</title>
+<link rel="stylesheet" href="styles.css?v=blue-yellow-theme-4">
+<style>
+.signal-wrap{max-width:1050px;margin:28px auto;padding:0 16px}.signal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.signal-card{background:#111a2e;border:1px solid #2b3954;border-radius:16px;padding:18px;color:#edf3ff}.signal-card label{display:block;margin:12px 0 6px;color:#aebbd2;font-size:13px}.signal-card input,.signal-card select,.signal-card textarea{width:100%;box-sizing:border-box;border:1px solid #354561;border-radius:9px;background:#0b1222;color:#f4f7ff;padding:11px;font:inherit}.signal-card button{margin:5px 6px 5px 0}.signal-status{padding:12px;border-radius:10px;background:#17243b;color:#d8e4fa;margin-top:12px}.signal-side{font-size:30px;font-weight:800;letter-spacing:.5px}.call{color:#42d6ad}.put{color:#ff8585}.neutral{color:#f5cf75}.small-note{font-size:12px;color:#aebbd2;line-height:1.55}.signal-table{width:100%;border-collapse:collapse;margin-top:10px}.signal-table th,.signal-table td{text-align:left;padding:9px;border-bottom:1px solid #2b3954;font-size:13px}.signal-table th{color:#aebbd2}.chip{display:inline-block;border:1px solid #3b4a66;border-radius:99px;padding:4px 8px;font-size:11px}.risk-row{display:flex;gap:12px;flex-wrap:wrap}.risk-row label{flex:1;min-width:120px}.signal-nav{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.signal-nav a{color:#dce7fb;text-decoration:none}.signal-nav a.active{color:#42d6ad}
+</style>
+</head>
+<body class="workspace-page">
+<header class="topbar">
+<a class="brand" href="index.html"><span class="brand-mark">S</span><span>Scalping<span class="accent">Bot</span></span></a>
+<nav class="workspace-links signal-nav"><a href="dashboard.html">Overview</a><a href="market.html">Market Analysis</a><a href="demo.html">Demo Trading</a><a class="active" href="pocket-signals.html">Pocket Signals</a></nav>
+</header>
+<main class="signal-wrap">
+<div class="eyebrow">● SIGNAL-ONLY · DEMO FIRST</div>
+<h1>Pocket Option <span class="gradient">Signal Lab</span></h1>
+<p class="lead">One-minute CALL / PUT analysis with paper testing and risk guards. No Pocket Option login, no live orders.</p>
+<div class="signal-status" role="status"><strong>DATA STATUS: SIMULATED DEMO</strong><br>Signals generated from synthetic test candles are for testing the interface only. They are not live forex quotes and do not represent Pocket Option OTC prices.</div>
+<div class="signal-grid" style="margin-top:16px">
+<section class="signal-card">
+<h3>Market setup</h3>
+<label for="marketType">Market</label><select id="marketType"><option value="forex">Forex (demo)</option><option value="otc">Pocket Option OTC (simulation only)</option></select>
+<label for="asset">Asset</label><select id="asset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>EUR/JPY</option><option>Gold (XAU/USD)</option></select>
+<label for="expiry">Signal expiry</label><select id="expiry"><option value="60">1 minute</option></select>
+<label for="dataMode">Candle source</label><select id="dataMode"><option value="simulation">Synthetic demo candles</option><option value="manual">Enter recent candle closes</option></select>
+<div id="manualBox" hidden><label for="manualCloses">Recent closes, oldest to newest (comma-separated numbers; at least 8)</label><textarea id="manualCloses" rows="3" placeholder="1.0840, 1.0842, 1.0841, ..."></textarea></div>
+<button class="btn primary full" id="analyzeBtn" type="button">Analyze for signal</button>
+<p class="small-note">Manual prices are user-provided, not independently verified. Live quote providers and OTC feeds are not connected.</p>
+</section>
+<section class="signal-card">
+<h3>Latest signal</h3>
+<div id="signalSide" class="signal-side neutral">NO SIGNAL</div>
+<p id="signalAsset">Choose a market and analyze candles.</p>
+<div class="risk-row"><span class="chip" id="confidenceChip">Confidence: —</span><span class="chip" id="expiryChip">Expiry: 1 minute</span></div>
+<p id="signalReason" class="signal-status">Wait for a valid setup. Avoid forcing entries.</p>
+<p id="signalTime" class="small-note">No signal generated yet.</p>
+<button class="btn outline" id="copySignal" type="button">Copy signal text</button>
+<button class="btn outline" id="markPaper" type="button">Log demo result</button>
+</section>
+<section class="signal-card">
+<h3>Risk controls</h3>
+<label for="demoBalanceInput">Demo balance (USD)</label><input id="demoBalanceInput" type="number" min="1" step="1" value="1000">
+<label for="riskPct">Risk per idea (%)</label><select id="riskPct"><option value="0.25">0.25%</option><option value="0.5" selected>0.5%</option><option value="1">1%</option></select>
+<label for="dailyLimit">Daily stop limit (%)</label><select id="dailyLimit"><option value="1">1%</option><option value="2" selected>2%</option><option value="3">3%</option></select>
+<label for="maxSignals">Max demo entries per day</label><select id="maxSignals"><option>3</option><option selected>5</option><option>10</option></select>
+<div class="signal-status" id="riskSummary">Risk budget: $5.00 per idea · Daily stop: $20.00</div>
+<p class="small-note">Binary-option payouts and loss amounts vary by platform. This budget is a demo discipline limit, not a guarantee or a position-size calculation.</p>
+</section>
+<section class="signal-card">
+<h3>Alerts</h3>
+<label for="telegramWebhook">Your secure Telegram relay URL (optional)</label><input id="telegramWebhook" type="url" placeholder="https://your-server.example/telegram-alert">
+<button class="btn outline full" id="saveAlertSettings" type="button">Save alert setting on this device</button>
+<div class="signal-status" id="alertStatus">In-app alerts are enabled. Telegram requires your own secure server endpoint; bot tokens must never be placed in this page.</div>
+<p class="small-note">The relay should accept POST JSON containing signal details and keep the Telegram bot token on the server. Do not paste a Telegram bot token here.</p>
+</section>
+</div>
+<section class="signal-card" style="margin-top:14px">
+<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Demo signal journal</h3><button class="btn outline" id="clearJournal" type="button">Clear journal</button></div>
+<div class="risk-row"><div><strong id="journalCount">0</strong><div class="small-note">Logged entries</div></div><div><strong id="winCount">0</strong><div class="small-note">Marked wins</div></div><div><strong id="lossCount">0</strong><div class="small-note">Marked losses</div></div><div><strong id="winRate">—</strong><div class="small-note">Marked win rate</div></div></div>
+<div style="overflow-x:auto"><table class="signal-table"><thead><tr><th>Time</th><th>Market</th><th>Signal</th><th>Source</th><th>Result</th></tr></thead><tbody id="journalRows"><tr><td colspan="5">No demo entries yet.</td></tr></tbody></table></div>
+</section>
+<p class="small-note" style="margin:18px 2px">Trading involves a risk of loss. One-minute binary options are highly volatile. A confidence score is a rule-based setup score, not a calibrated probability of winning. Test extensively before relying on any strategy.</p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const state = { signal:null, journal:[], dailyCount:0, dailyLoss:0, day:new Date().toISOString().slice(0,10) };
+  const storageKey = "pocketSignalLab-v1";
+  const fmt = n => Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  function load() {
+    try { const saved = JSON.parse(localStorage.getItem(storageKey)||"{}"); if(Array.isArray(saved.journal)) state.journal=saved.journal; if(saved.day===state.day){state.dailyCount=saved.dailyCount||0;state.dailyLoss=saved.dailyLoss||0;} $("telegramWebhook").value=saved.webhook||""; } catch(e) {}
+    renderJournal(); updateRisk();
+  }
+  function persist() {
+    try { localStorage.setItem(storageKey,JSON.stringify({journal:state.journal,day:state.day,dailyCount:state.dailyCount,dailyLoss:state.dailyLoss,webhook:$("telegramWebhook").value.trim()})); } catch(e) {}
+  }
+  function updateRisk() {
+    const balance=Math.max(0,Number($("demoBalanceInput").value)||0), pct=Number($("riskPct").value)||0.5, limit=Number($("dailyLimit").value)||2;
+    $("riskSummary").textContent="Risk budget: $"+fmt(balance*pct/100)+" per idea · Daily stop: $"+fmt(balance*limit/100)+" · Demo entries today: "+state.dailyCount+"/"+$("maxSignals").value;
+  }
+  function candlesFromCloses(closes) { return closes.map((close,i)=>({open:i?closes[i-1]:close-(closes[1]-closes[0]),close})); }
+  function syntheticCandles() {
+    const seed=Date.now()%100000, arr=[]; let p=1.08+(seed%1000)/100000;
+    for(let i=0;i<30;i++){const drift=Math.sin((i+seed/1000)/3)*0.00012+(i%7<4?0.000025:-0.00003); const change=drift+((Math.sin(i*7.31+seed)*100)%100)*0.000001; const open=p; p=Math.max(0.5,p+change); arr.push({open,close:p});}
+    return arr;
+  }
+  function scoreSignal(candles) {
+    if(candles.length<8) return {side:"NONE",score:0,reason:"Need at least 8 closes."};
+    const c=candles.map(x=>x.close), recent=c.slice(-5), last=c[c.length-1], prev=c[c.length-2];
+    const changes=[]; for(let i=Math.max(1,c.length-6);i<c.length;i++) changes.push(c[i]-c[i-1]);
+    const up=changes.filter(x=>x>0).length, down=changes.filter(x=>x<0).length;
+    const avg=changes.reduce((a,b)=>a+b,0)/changes.length, momentum=last-prev;
+    const prior=c.slice(-8,-2), high=Math.max(...prior), low=Math.min(...prior);
+    const breakoutUp=last>high, breakoutDown=last<low;
+    const sameWay=momentum>0?up:down;
+    const net=Math.abs(last-c[c.length-5]), noise=changes.reduce((a,b)=>a+Math.abs(b),0);
+    const efficiency=noise?net/noise:0;
+    let side="NONE", score=0, reasons=[];
+    if(momentum>0 && up>=4){side="CALL";score+=35;reasons.push("recent closes show upward momentum");}
+    if(momentum<0 && down>=4){side="PUT";score+=35;reasons.push("recent closes show downward momentum");}
+    if(side==="CALL"&&breakoutUp){score+=25;reasons.push("close broke above the recent range");}
+    if(side==="PUT"&&breakoutDown){score+=25;reasons.push("close broke below the recent range");}
+    if(efficiency>0.55){score+=20;reasons.push("movement is relatively directional");}
+    if(Math.abs(momentum)>0 && sameWay>=5){score+=10;reasons.push("most recent moves agree");}
+    score=Math.min(90,score);
+    if(side==="NONE"||score<55) return {side:"NONE",score,reason:"No clear price-action setup. "+(reasons.join("; ")||"Recent movement is mixed.")};
+    return {side,score,reason:reasons.join("; ")+". Wait for the next candle confirmation; this is not a win probability."};
+  }
+  function sendAlert(signal) {
+    const msg="Pocket Signal Lab · DEMO\n"+signal.asset+" · "+signal.market+"\n"+signal.side+" · 1 minute\nSetup score: "+signal.score+"/90\n"+signal.reason+"\nSource: "+signal.source+"\nNot financial advice; verify the market manually.";
+    $("signalStatus") && ($("signalStatus").textContent=msg);
+    if("Notification" in window && Notification.permission==="granted") new Notification("Pocket signal: "+signal.side,{body:signal.asset+" · 1m · "+signal.score+"/90 setup score"});
+    const url=$("telegramWebhook").value.trim();
+    if(url) {
+      try { const u=new URL(url); if(u.protocol!=="https:") throw new Error("HTTPS required"); fetch(u.href,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:msg,signal:{asset:signal.asset,market:signal.market,side:signal.side,expirySeconds:60,score:signal.score,source:signal.source,createdAt:signal.createdAt}}),mode:"cors"}).then(r=>{if(!r.ok) throw new Error("Relay returned "+r.status);$("alertStatus").textContent="Telegram relay accepted the alert.";}).catch(()=>{$("alertStatus").textContent="Telegram relay failed. Check the HTTPS endpoint, CORS, and server logs.";}); } catch(e) { $("alertStatus").textContent="Telegram relay URL must be a valid HTTPS URL."; }
+    }
+  }
+  function analyze() {
+    const source=$("dataMode").value, closesInput=$("manualCloses").value;
+    let candles;
+    if(source==="manual") {
+      const closes=closesInput.split(",").map(x=>Number(x.trim())).filter(x=>Number.isFinite(x)&&x>0);
+      if(closes.length<8){alert("Enter at least 8 valid positive closing prices, oldest to newest.");return;}
+      candles=candlesFromCloses(closes);
+    } else candles=syntheticCandles();
+    const res=scoreSignal(candles), market=$("marketType").value==="otc"?"OTC simulation":"Forex demo";
+    state.signal={side:res.side,score:res.score,reason:res.reason,asset:$("asset").value,market,source:source==="manual"?"User-entered closes":"Synthetic demo candles",createdAt:new Date().toISOString()};
+    $("signalSide").textContent=res.side==="NONE"?"NO SIGNAL":res.side;
+    $("signalSide").className="signal-side "+(res.side==="CALL"?"call":res.side==="PUT"?"put":"neutral");
+    $("signalAsset").textContent=state.signal.asset+" · "+market;
+    $("confidenceChip").textContent="Setup score: "+res.score+"/90";
+    $("signalReason").textContent=res.reason;
+    $("signalTime").textContent=new Date().toLocaleString()+" · "+state.signal.source;
+    if(res.side!=="NONE") {
+      if(state.dailyCount>=Number($("maxSignals").value)){ $("signalReason").textContent="Daily demo entry cap reached. "+res.reason; }
+      else { if("Notification" in window && Notification.permission==="default") Notification.requestPermission().catch(()=>{}); sendAlert(state.signal); }
+    }
+    persist();
+  }
+  function renderJournal() {
+    const rows=$("journalRows");
+    if(!state.journal.length) rows.innerHTML='<tr><td colspan="5">No demo entries yet.</td></tr>';
+    else rows.innerHTML=state.journal.slice().reverse().map(x=>'<tr><td>'+new Date(x.time).toLocaleTimeString()+'</td><td>'+escapeHtml(x.asset)+'<br><small>'+escapeHtml(x.market)+'</small></td><td>'+escapeHtml(x.side)+'</td><td>'+escapeHtml(x.source)+'</td><td><select data-result="'+x.id+'" aria-label="Demo result"><option value="pending" '+(x.result==="pending"?"selected":"")+'>Pending</option><option value="win" '+(x.result==="win"?"selected":"")+'>Win</option><option value="loss" '+(x.result==="loss"?"selected":"")+'>Loss</option><option value="skip" '+(x.result==="skip"?"selected":"")+'>Skipped</option></select></td></tr>').join("");
+    rows.querySelectorAll("select[data-result]").forEach(el=>el.addEventListener("change",()=>{const item=state.journal.find(x=>x.id===el.dataset.result);if(item)item.result=el.value;persist();renderJournalStats();}));
+    renderJournalStats();
+  }
+  function renderJournalStats() {
+    const done=state.journal.filter(x=>x.result==="win"||x.result==="loss"), wins=done.filter(x=>x.result==="win").length, losses=done.length-wins;
+    $("journalCount").textContent=state.journal.length; $("winCount").textContent=wins; $("lossCount").textContent=losses; $("winRate").textContent=done.length?Math.round(wins/done.length*100)+"%":"—";
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  $("dataMode").addEventListener("change",()=>{$("manualBox").hidden=$("dataMode").value!=="manual";});
+  $("analyzeBtn").addEventListener("click",analyze);
+  $("copySignal").addEventListener("click",async()=>{if(!state.signal){alert("Analyze first.");return;}const s=state.signal;const msg="Pocket Signal Lab (DEMO)\n"+s.asset+" / "+s.market+"\n"+s.side+" · 1 minute · setup score "+s.score+"/90\n"+s.reason+"\nSource: "+s.source+"\nNot a win probability. Verify market data.";try{await navigator.clipboard.writeText(msg);$("alertStatus").textContent="Signal copied. You can paste it into Telegram."; }catch(e){prompt("Copy this signal text:",msg);}});
+  $("markPaper").addEventListener("click",()=>{if(!state.signal){alert("Analyze a setup first.");return;}if(state.dailyCount>=Number($("maxSignals").value)){alert("Daily demo cap reached. Stop testing for today.");return;}const s=state.signal;state.journal.push({id:String(Date.now()),time:new Date().toISOString(),asset:s.asset,market:s.market,side:s.side,source:s.source,result:"pending"});state.dailyCount++;persist();renderJournal();updateRisk();$("alertStatus").textContent="Signal logged as a demo idea. Mark its outcome later; do not treat it as a placed trade.";});
+  $("saveAlertSettings").addEventListener("click",()=>{const url=$("telegramWebhook").value.trim();if(url){try{if(new URL(url).protocol!=="https:")throw 0;}catch(e){alert("Use a valid HTTPS relay URL. Never enter your Telegram bot token here.");return;}}persist();$("alertStatus").textContent=url?"Secure relay URL saved on this device. Test it with a server you control.":"In-app alerts enabled; Telegram relay not configured.";});
+  $("clearJournal").addEventListener("click",()=>{if(confirm("Clear demo journal and today's entry count?")){state.journal=[];state.dailyCount=0;state.dailyLoss=0;persist();renderJournal();updateRisk();}});
+  ["demoBalanceInput","riskPct","dailyLimit","maxSignals"].forEach(id=>$(id).addEventListener("input",updateRisk));
+  load();
+})();
+</script>
+</body>
+</html>
