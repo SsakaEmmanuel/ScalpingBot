@@ -139,8 +139,15 @@ if (sidebar && main) {
 
   const marketPanelHTML = () => `
     <div class="panel" id="liveMarketPanel">
-      <h3>Live market data <span class="tag">External feed</span></h3>
-      <p>Indicative third-party prices; not broker quotes and may be delayed.</p>
+      <h3>Market data source</h3>
+      <p>Choose the source for chart analysis. External prices may be delayed. Broker quotes require a connected local MT5 bridge.</p>
+      <label for="marketFeedSource">Price source
+        <select id="marketFeedSource">
+          <option value="external" selected>External feed · Yahoo Finance proxy</option>
+          <option value="mt5">My broker · MT5 terminal (connection required)</option>
+        </select>
+      </label>
+      <p id="marketSourceNotice" class="notice" role="status">External feed selected. Indicative prices only; not broker quotes.</p>
       <div class="feed-status" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0">
         <span id="feedIndicator" aria-hidden="true" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e0a34b"></span>
         <strong id="feedConnectionState">Connecting to external feed…</strong>
@@ -456,6 +463,21 @@ if (sidebar && main) {
     const feedState = document.getElementById("feedConnectionState");
     const feedIndicator = document.getElementById("feedIndicator");
     const autoState = document.getElementById("feedAutoState");
+    const sourceControl = document.getElementById("marketFeedSource");
+    const sourceNotice = document.getElementById("marketSourceNotice");
+    if (sourceControl && sourceControl.value === "mt5") {
+      if (sourceNotice) sourceNotice.textContent = "MT5 broker feed selected, but the local bridge is not yet configured for secure browser access. Showing no external price as if it were a broker quote. Choose External feed to view indicative prices.";
+      if (statusEl) statusEl.textContent = "MT5 broker feed unavailable: local bridge connection is not configured.";
+      if (feedState) feedState.textContent = "MT5 bridge not connected";
+      if (feedIndicator) feedIndicator.style.background = "#ff7185";
+      if (priceEl) priceEl.textContent = "—";
+      if (updatedEl) updatedEl.textContent = "No broker quote available.";
+      if (chart) chart.innerHTML = '<text x="12" y="80" fill="currentColor">Connect the MT5 bridge to display broker candles.</text>';
+      latestSignal = { side: "WAIT", reason: "MT5 broker feed is not connected; no broker-based signal can be calculated.", indicators: "Waiting for MT5 bridge connection." };
+      renderDemoEngine();
+      return;
+    }
+    if (sourceNotice) sourceNotice.textContent = "External feed selected. Indicative third-party prices only; not broker quotes.";
     if (marketRequestInProgress) return;
     marketRequestInProgress = true;
     statusEl.textContent = "Fetching latest available indicative prices…";
