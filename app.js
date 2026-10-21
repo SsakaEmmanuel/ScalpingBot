@@ -148,6 +148,19 @@ if (sidebar && main) {
         </select>
       </label>
       <p id="marketSourceNotice" class="notice" role="status">External feed selected. Indicative prices only; not broker quotes.</p>
+      <div id="mt5BridgeSettings" hidden>
+        <label>Bridge HTTPS address
+          <input id="mt5BridgeUrl" type="url" inputmode="url" placeholder="https://your-secure-tunnel.example">
+        </label>
+        <label>Bridge API key (kept for this browser session only)
+          <input id="mt5BridgeKey" type="password" autocomplete="off" placeholder="Enter your own bridge key">
+        </label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+          <button class="btn outline" id="saveMt5Bridge" type="button">Connect / save for this session</button>
+          <button class="btn outline" id="clearMt5Bridge" type="button">Clear connection details</button>
+        </div>
+        <p id="mt5BridgeStatus" class="notice" role="status">Enter the secure bridge address and your own API key.</p>
+      </div>
       <div class="feed-status" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0">
         <span id="feedIndicator" aria-hidden="true" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e0a34b"></span>
         <strong id="feedConnectionState">Connecting to external feed…</strong>
@@ -469,17 +482,104 @@ if (sidebar && main) {
       sourceControl.dataset.bound = "true";
       sourceControl.addEventListener("change", () => { loadLiveMarketData(); });
     }
+    const bridgeSettings = document.getElementById("mt5BridgeSettings");
+    const bridgeUrlInput = document.getElementById("mt5BridgeUrl");
+    const bridgeKeyInput = document.getElementById("mt5BridgeKey");
+    const bridgeStatus = document.getElementById("mt5BridgeStatus");
+    const bridgeUrlKey = "scalpingbot-mt5-bridge-url-v1";
+    const bridgeApiKey = "scalpingbot-mt5-bridge-key-v1";
     if (sourceControl && sourceControl.value === "mt5") {
-      if (sourceNotice) sourceNotice.textContent = "MT5 broker feed selected, but the local bridge is not yet configured for secure browser access. Showing no external price as if it were a broker quote. Choose External feed to view indicative prices.";
-      if (statusEl) statusEl.textContent = "MT5 broker feed unavailable: local bridge connection is not configured.";
-      if (feedState) feedState.textContent = "MT5 bridge not connected";
-      if (feedIndicator) feedIndicator.style.background = "#ff7185";
-      if (priceEl) priceEl.textContent = "—";
-      if (updatedEl) updatedEl.textContent = "No broker quote available.";
-      if (chart) chart.innerHTML = '<text x="12" y="80" fill="currentColor">Connect the MT5 bridge to display broker candles.</text>';
-      latestSignal = { side: "WAIT", reason: "MT5 broker feed is not connected; no broker-based signal can be calculated.", indicators: "Waiting for MT5 bridge connection." };
-      renderDemoEngine();
+      if (bridgeSettings) bridgeSettings.hidden = false;
+      if (bridgeUrlInput && !bridgeUrlInput.value) {
+        try { bridgeUrlInput.value = sessionStorage.getItem(bridgeUrlKey) || ""; } catch (_) {}
+      }
+      if (bridgeKeyInput && !bridgeKeyInput.value) {
+        try { bridgeKeyInput.value = sessionStorage.getItem(bridgeApiKey) || ""; } catch (_) {}
+      }
+      const bindButton = (id, handler) => {
+        const el = document.getElementById(id);
+        if (el && el.dataset.bound !== "true") { el.dataset.bound = "true"; el.addEventListener("click", handler); }
+      };
+      bindButton("saveMt5Bridge", async () => {
+        const base = (bridgeUrlInput?.value || "").trim().replace(/\\/+$/, "");
+        const key = (bridgeKeyInput?.value || "").trim();
+        if (!/^https:\\/\\//i.test(base) || !key) {
+          if (bridgeStatus) bridgeStatus.textContent = "Enter an HTTPS bridge address and your API key. Do not use a public unprotected server.";
+          return;
+        }
+        try {
+          sessionStorage.setItem(bridgeUrlKey, base);
+          sessionStorage.setItem(bridgeApiKey, key);
+          if (bridgeStatus) bridgeStatus.textContent = "Testing secure MT5 bridge connection…";
+          await loadLiveMarketData();
+        } catch (_) {
+          if (bridgeStatus) bridgeStatus.textContent = "Could not save or test bridge settings.";
+        }
+      });
+      bindButton("clearMt5Bridge", () => {
+        try { sessionStorage.removeItem(bridgeUrlKey); sessionStorage.removeItem(bridgeApiKey); } catch (_) {}
+        if (bridgeUrlInput) bridgeUrlInput.value = "";
+        if (bridgeKeyInput) bridgeKeyInput.value = "";
+        if (bridgeStatus) bridgeStatus.textContent = "Connection details cleared from this browser session.";
+        if (priceEl) priceEl.textContent = "—";
+        if (statusEl) statusEl.textContent = "MT5 bridge disconnected.";
+      });
+      if (sourceNotice) sourceNotice.textContent = "MT5 selected. A reachable HTTPS tunnel to the Windows bridge is required; localhost on your phone will not reach the PC.";
+      if (marketRequestInProgress) return;
+      let base = "";
+      let key = "";
+      try { base = sessionStorage.getItem(bridgeUrlKey) || ""; key = sessionStorage.getItem(bridgeApiKey) || ""; } catch (_) {}
+      if (!base || !key) {
+        if (statusEl) statusEl.textContent = "MT5 bridge not configured. Enter the HTTPS bridge address and API key below.";
+        if (feedState) feedState.textContent = "MT5 bridge not connected";
+        if (feedIndicator) feedIndicator.style.background = "#ff7185";
+        if (priceEl) priceEl.textContent = "—";
+        if (updatedEl) updatedEl.textContent = "No broker quote available.";
+        if (chart) chart.innerHTML = '<text x="12" y="80" fill="currentColor">Configure the secure MT5 bridge to display broker candles.</text>';
+        latestSignal = { side: "WAIT", reason: "MT5 bridge is not configured; no broker-based signal can be calculated.", indicators: "Waiting for MT5 bridge connection." };
+        renderDemoEngine();
+        return;
+      }
+      marketRequestInProgress = true;
+      try {
+        const headers = { "X-Bridge-Api-Key": key };
+        const statusResponse = await fetch(base + "/mt5/status", { headers, cache: "no-store" });
+        const statusData = await statusResponse.json();
+        if (!statusResponse.ok) throw new Error(statusData.detail || "Bridge authentication failed.");
+        if (!statusData.connected || !statusData.account_logged_in) throw new Error(statusData.error || "MT5 terminal is offline or no account is logged in.");
+        const tfMap = { "1m":"M1", "5m":"M5", "15m":"M15", "30m":"M30", "60m":"H1" };
+        const mt5Symbol = symbol;
+        const candleResponse = await fetch(base + "/mt5/candles?symbol=" + encodeURIComponent(mt5Symbol) + "&timeframe=" + encodeURIComponent(tfMap[timeframe] || "M5") + "&count=100", { headers, cache: "no-store" });
+        const candleData = await candleResponse.json();
+        if (!candleResponse.ok) throw new Error(candleData.detail || "Could not load MT5 candles.");
+        if (!Array.isArray(candleData.candles) || candleData.candles.length < 2) throw new Error("MT5 returned too few completed candles.");
+        lastMarketCandles = candleData.candles;
+        const last = lastMarketCandles[lastMarketCandles.length - 1];
+        const decimals = symbol === "USDJPY" ? 3 : symbol === "XAUUSD" ? 2 : 5;
+        if (priceEl) priceEl.textContent = Number(last.close).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        marketLastSuccessAt = new Date();
+        if (statusEl) statusEl.textContent = "Broker: MT5 · " + (statusData.account_trade_mode || "account mode unknown") + " · read-only quotes.";
+        if (feedState) feedState.textContent = "MT5 connected · updated " + marketLastSuccessAt.toLocaleTimeString();
+        if (feedIndicator) feedIndicator.style.background = "#42d6ad";
+        if (autoState) autoState.textContent = "Auto-refresh: every 10 seconds (completed candles)";
+        if (updatedEl) updatedEl.textContent = "MT5 candle close · fetched " + marketLastSuccessAt.toLocaleTimeString();
+        if (bridgeStatus) bridgeStatus.textContent = "Connected to MT5. Terminal online; account mode: " + (statusData.account_trade_mode || "unknown") + ". Read-only data only.";
+        drawMarketChart(lastMarketCandles);
+        handleScalpPrice(Number(last.close), symbol);
+      } catch (error) {
+        if (bridgeStatus) bridgeStatus.textContent = "Bridge connection failed: " + error.message + ". Check HTTPS tunnel, CORS, API key, and that MT5 is open on the PC.";
+        if (statusEl) statusEl.textContent = "MT5 feed unavailable: " + error.message;
+        if (feedState) feedState.textContent = "MT5 bridge disconnected";
+        if (feedIndicator) feedIndicator.style.background = "#ff7185";
+        if (priceEl) priceEl.textContent = "—";
+        if (updatedEl) updatedEl.textContent = "No broker quote available.";
+        if (chart) chart.innerHTML = '<text x="12" y="80" fill="currentColor">MT5 candle data unavailable.</text>';
+      } finally {
+        marketRequestInProgress = false;
+      }
       return;
+    } else if (bridgeSettings) {
+      bridgeSettings.hidden = true;
     }
     if (sourceNotice) sourceNotice.textContent = "External feed selected. Indicative third-party prices only; not broker quotes.";
     if (marketRequestInProgress) return;
