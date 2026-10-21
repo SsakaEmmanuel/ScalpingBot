@@ -77,9 +77,16 @@
   function persist() {
     try { localStorage.setItem(storageKey,JSON.stringify({journal:state.journal,day:state.day,dailyCount:state.dailyCount,dailyLoss:state.dailyLoss,webhook:$("telegramWebhook").value.trim()})); } catch(e) {}
   }
-  function updateRisk() {
+  function riskStatus() {
     const balance=Math.max(0,Number($("demoBalanceInput").value)||0), pct=Number($("riskPct").value)||0.5, limit=Number($("dailyLimit").value)||2;
-    $("riskSummary").textContent="Risk budget: $"+fmt(balance*pct/100)+" per idea · Daily stop: $"+fmt(balance*limit/100)+" · Demo entries today: "+state.dailyCount+"/"+$("maxSignals").value;
+    const riskPerIdea=balance*pct/100, dailyStop=balance*limit/100;
+    const losses=state.journal.filter(x=>x.time.slice(0,10)===state.day&&x.result==="loss").length;
+    const estimatedLoss=losses*riskPerIdea;
+    return {balance,pct,limit,riskPerIdea,dailyStop,estimatedLoss,blocked:state.dailyCount>=Number($("maxSignals").value)||estimatedLoss>=dailyStop};
+  }
+  function updateRisk() {
+    const r=riskStatus();
+    $("riskSummary").textContent="Risk budget: $"+fmt(r.riskPerIdea)+" per idea · Daily stop: $"+fmt(r.dailyStop)+" · Estimated demo losses: $"+fmt(r.estimatedLoss)+" · Entries: "+state.dailyCount+"/"+$("maxSignals").value+(r.blocked?" · RISK LOCK ACTIVE":"");
   }
   function candlesFromCloses(closes) { return closes.map((close,i)=>({open:i?closes[i-1]:close-(closes[1]-closes[0]),close})); }
   function syntheticCandles() {
@@ -136,6 +143,7 @@
     $("signalTime").textContent=new Date().toLocaleString()+" · "+state.signal.source;
     if(res.side!=="NONE") {
       if(state.dailyCount>=Number($("maxSignals").value)){ $("signalReason").textContent="Daily demo entry cap reached. "+res.reason; }
+      else if(riskStatus().blocked) { $("signalReason").textContent="Risk lock active: daily entry cap or daily loss limit reached. No new demo entry should be logged. "+res.reason; }
       else { if("Notification" in window && Notification.permission==="default") Notification.requestPermission().catch(()=>{}); sendAlert(state.signal); }
     }
     persist();
@@ -144,7 +152,7 @@
     const rows=$("journalRows");
     if(!state.journal.length) rows.innerHTML='<tr><td colspan="5">No demo entries yet.</td></tr>';
     else rows.innerHTML=state.journal.slice().reverse().map(x=>'<tr><td>'+new Date(x.time).toLocaleTimeString()+'</td><td>'+escapeHtml(x.asset)+'<br><small>'+escapeHtml(x.market)+'</small></td><td>'+escapeHtml(x.side)+'</td><td>'+escapeHtml(x.source)+'</td><td><select data-result="'+x.id+'" aria-label="Demo result"><option value="pending" '+(x.result==="pending"?"selected":"")+'>Pending</option><option value="win" '+(x.result==="win"?"selected":"")+'>Win</option><option value="loss" '+(x.result==="loss"?"selected":"")+'>Loss</option><option value="skip" '+(x.result==="skip"?"selected":"")+'>Skipped</option></select></td></tr>').join("");
-    rows.querySelectorAll("select[data-result]").forEach(el=>el.addEventListener("change",()=>{const item=state.journal.find(x=>x.id===el.dataset.result);if(item)item.result=el.value;persist();renderJournalStats();}));
+    rows.querySelectorAll("select[data-result]").forEach(el=>el.addEventListener("change",()=>{const item=state.journal.find(x=>x.id===el.dataset.result);if(item)item.result=el.value;persist();renderJournalStats();updateRisk();}));
     renderJournalStats();
   }
   function renderJournalStats() {
@@ -155,7 +163,7 @@
   $("dataMode").addEventListener("change",()=>{$("manualBox").hidden=$("dataMode").value!=="manual";});
   $("analyzeBtn").addEventListener("click",analyze);
   $("copySignal").addEventListener("click",async()=>{if(!state.signal){alert("Analyze first.");return;}const s=state.signal;const msg="Pocket Signal Lab (DEMO)\n"+s.asset+" / "+s.market+"\n"+s.side+" · 1 minute · setup score "+s.score+"/90\n"+s.reason+"\nSource: "+s.source+"\nNot a win probability. Verify market data.";try{await navigator.clipboard.writeText(msg);$("alertStatus").textContent="Signal copied. You can paste it into Telegram."; }catch(e){prompt("Copy this signal text:",msg);}});
-  $("markPaper").addEventListener("click",()=>{if(!state.signal){alert("Analyze a setup first.");return;}if(state.dailyCount>=Number($("maxSignals").value)){alert("Daily demo cap reached. Stop testing for today.");return;}const s=state.signal;state.journal.push({id:String(Date.now()),time:new Date().toISOString(),asset:s.asset,market:s.market,side:s.side,source:s.source,result:"pending"});state.dailyCount++;persist();renderJournal();updateRisk();$("alertStatus").textContent="Signal logged as a demo idea. Mark its outcome later; do not treat it as a placed trade.";});
+  $("markPaper").addEventListener("click",()=>{if(!state.signal){alert("Analyze a setup first.");return;}if(riskStatus().blocked){alert("Risk lock active: daily demo entry cap or estimated daily loss limit reached. Stop testing for today.");return;}const s=state.signal;state.journal.push({id:String(Date.now()),time:new Date().toISOString(),asset:s.asset,market:s.market,side:s.side,source:s.source,result:"pending"});state.dailyCount++;persist();renderJournal();updateRisk();$("alertStatus").textContent="Signal logged as a demo idea. Mark its outcome later; do not treat it as a placed trade.";});
   $("saveAlertSettings").addEventListener("click",()=>{const url=$("telegramWebhook").value.trim();if(url){try{if(new URL(url).protocol!=="https:")throw 0;}catch(e){alert("Use a valid HTTPS relay URL. Never enter your Telegram bot token here.");return;}}persist();$("alertStatus").textContent=url?"Secure relay URL saved on this device. Test it with a server you control.":"In-app alerts enabled; Telegram relay not configured.";});
   $("clearJournal").addEventListener("click",()=>{if(confirm("Clear demo journal and today's entry count?")){state.journal=[];state.dailyCount=0;state.dailyLoss=0;persist();renderJournal();updateRisk();}});
   ["demoBalanceInput","riskPct","dailyLimit","maxSignals"].forEach(id=>$(id).addEventListener("input",updateRisk));
