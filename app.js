@@ -465,6 +465,10 @@ if (sidebar && main) {
     const autoState = document.getElementById("feedAutoState");
     const sourceControl = document.getElementById("marketFeedSource");
     const sourceNotice = document.getElementById("marketSourceNotice");
+    if (sourceControl && sourceControl.dataset.bound !== "true") {
+      sourceControl.dataset.bound = "true";
+      sourceControl.addEventListener("change", () => { loadLiveMarketData(); });
+    }
     if (sourceControl && sourceControl.value === "mt5") {
       if (sourceNotice) sourceNotice.textContent = "MT5 broker feed selected, but the local bridge is not yet configured for secure browser access. Showing no external price as if it were a broker quote. Choose External feed to view indicative prices.";
       if (statusEl) statusEl.textContent = "MT5 broker feed unavailable: local bridge connection is not configured.";
