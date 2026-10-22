@@ -619,6 +619,7 @@
   }
   async function analyze(options = {}) {
     if(state.busy)return;
+    const context={mode:$("modeSelect").value,marketType:$("marketType").value,asset:$("asset").value,interval:$("interval").value,expiry:$("expiry").value,minScore:$("minScore").value};
     state.busy=true; $("analyzeBtn").disabled=true;
     setFeedStatus(isLive()?"Requesting live candles from Twelve Data…":"Preparing Demo candles…","warn");
     try {
@@ -630,6 +631,9 @@
         state.candles=generateDemoCandles(150);
         state.feedMode="demo";
         state.meta={symbol:$("asset").value,interval:$("interval").value};
+      }
+      if(context.mode!==$("modeSelect").value||context.marketType!==$("marketType").value||context.asset!==$("asset").value||context.interval!==$("interval").value||context.expiry!==$("expiry").value||context.minScore!==$("minScore").value){
+        state.candles=[];return;
       }
       const last=state.candles[state.candles.length-1];
       const intervalMs=timeframeMinutes()*60000;
@@ -814,10 +818,10 @@
   ["asset","interval","expiry","minScore","riskPct","dailyLimit","maxSignals","payoutPct","autoRate","demoBalanceInput"].forEach(id=>{
     $(id).addEventListener("change",()=>{
       if(["asset","interval","expiry","minScore"].includes(id))resetMarketState("Settings changed. Analyze again before using a signal.");
-      syncControls();updateRisk();persist();
+      syncControls();updateRisk();if(state.signal)paintSignal(state.signal);persist();
       if(id==="autoRate"&&state.autoTimer){clearInterval(state.autoTimer);state.autoTimer=null;startAutoScan();}
     });
-    $(id).addEventListener("input",()=>{updateRisk();persist();});
+    $(id).addEventListener("input",()=>{updateRisk();if(state.signal)paintSignal(state.signal);persist();});
   });
   $("saveMarketKey").addEventListener("click",()=>{
     if(!$("marketApiKey").value.trim()){alert("Enter your Twelve Data API key first.");return;}
@@ -825,7 +829,9 @@
     setFeedStatus("Key saved locally. Analyze now to validate provider access.","warn");
   });
   $("clearMarketKey").addEventListener("click",()=>{
-    $("marketApiKey").value="";persist();setFeedStatus("Saved provider key removed from this browser.","warn");
+    $("marketApiKey").value="";
+    try{localStorage.removeItem(LEGACY);}catch(e){}
+    persist();setFeedStatus("Saved provider key removed from this browser.","warn");
     $("alertStatus").textContent="Provider key forgotten on this device.";
   });
   $("saveAlertSettings").addEventListener("click",()=>{
@@ -844,6 +850,7 @@
   $("clearJournal").addEventListener("click",()=>{
     if(confirm("Clear every journal entry and its paper P/L on this device? This cannot be undone.")){
       state.journal=[];renderJournal();updateRisk();persist();
+      if(state.signal)paintSignal(state.signal);
       $("alertStatus").textContent="Journal cleared on this device.";
     }
   });
