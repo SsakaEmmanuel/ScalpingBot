@@ -451,6 +451,8 @@
     const volatilityOK=volRatio>=0.45&&volRatio<=2.8;
     let score=0; const reasons=[];
     if(side!=="NONE"){score+=25;reasons.push("EMA 9 / EMA 21 trend and short momentum align");}
+    const emaGap=Math.abs(fast[fast.length-1]-slow[slow.length-1]);
+    if(side!=="NONE"&&baseline>0&&emaGap>=baseline*0.12){score+=10;reasons.push("EMA spacing supports a decisive trend");}
     if(side==="CALL"&&r>=52&&r<=76){score+=15;reasons.push("RSI supports upward pressure without extreme extension");}
     if(side==="PUT"&&r<=48&&r>=24){score+=15;reasons.push("RSI supports downward pressure without extreme extension");}
     if(side==="CALL"&&breakoutUp){score+=20;reasons.push("close broke above the recent candle range");}
