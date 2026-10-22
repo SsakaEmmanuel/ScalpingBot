@@ -121,8 +121,8 @@
 </div>
 <div id="apiBox" hidden>
 <div class="signal-divider"></div>
-<label for="marketApiKey">Twelve Data API key</label>
-<input id="marketApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your private API key">
+<label for="marketApiKey">Live data access key</label>
+<input id="marketApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter access key">
 <div class="signal-btnrow"><button class="btn outline" id="saveMarketKey" type="button">Save key</button><button class="btn outline" id="clearMarketKey" type="button">Forget key</button></div>
 <p class="signal-note">Saved only in this browser on this device. A browser-side key is not secret from someone who can inspect the device or browser. Do not use this page on a shared device with a paid key.</p>
 </div>
@@ -131,11 +131,10 @@
 <div><label for="minScore">Minimum setup score</label><select id="minScore"><option value="55">55 / 100</option><option value="60" selected>60 / 100</option><option value="70">70 / 100</option><option value="80">80 / 100</option></select></div>
 </div>
 <div class="signal-btnrow">
-<button class="btn primary" id="analyzeBtn" type="button">Analyze now</button>
 <button class="btn outline" id="autoBtn" type="button">Start auto-scan</button>
 </div>
 <div id="feedStatus" class="signal-status warn" role="status" aria-live="polite">Choose Demo or Live and analyze to check the feed.</div>
-<p class="signal-note">Live requests use Twelve Data. The latest bar can still be forming. Live market quotes may differ from Pocket Option and this provider does not supply Pocket Option OTC quotes.</p>
+<p class="signal-note">Signals use completed candles. Quotes and timing may differ from your trading platform.</p>
 </section>
 <section class="signal-card">
 <h3>Risk guard</h3>
@@ -165,6 +164,7 @@
 <div class="signal-stack">
 <section class="signal-card">
 <div id="analysisLoader" class="analysis-loader" role="status" aria-live="polite" hidden><span class="analysis-spinner" aria-hidden="true"></span><div><strong>Analyzing market conditions…</strong><p>Checking candle freshness, trend alignment, momentum and setup confirmation. Please wait.</p></div></div>
+<div class="signal-btnrow"><button class="btn primary" id="analyzeBtn" type="button">Analyze now</button></div>
 <div class="signal-workhead">
 <div>
 <div class="eyebrow">SIGNAL ENGINE / RULE-BASED</div>
@@ -628,7 +628,7 @@
     if(state.busy)return;
     const context={mode:$("modeSelect").value,marketType:$("marketType").value,asset:$("asset").value,interval:$("interval").value,expiry:$("expiry").value,minScore:$("minScore").value};
     state.busy=true; const analysisStartedAt=Date.now(); $("analyzeBtn").disabled=true; $("analyzeBtn").textContent="Analyzing…"; $("analysisLoader").hidden=false; $("signalReason").textContent="Analysis in progress. The previous signal is not being refreshed until this run completes."; $("signalReason").className="signal-status warn";
-    setFeedStatus(isLive()?"Requesting live candles from Twelve Data…":"Preparing Demo candles…","warn");
+    setFeedStatus(isLive()?"Loading Live market candles…":"Preparing Demo candles…","warn");
     try {
       const live=isLive();
       if(live) {
@@ -651,7 +651,7 @@
       state.lastAnalysisAt=new Date(); state.consecutiveErrors=0;
       const market=$("marketType").value==="otc"?"Pocket Option OTC (Demo)":"Forex";
       setFeedStatus(live
-        ? "Completed Live candles received from Twelve Data · "+state.candles.length+" bars · latest completed bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
+        ? "Live market candles ready · "+state.candles.length+" bars · latest completed bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
         : "Demo feed ready · "+state.candles.length+" candles · "+$("asset").value+" · generated locally for strategy testing.",
         stale?"bad":"good");
       if(stale) {
@@ -682,7 +682,7 @@
         $("backtestStatus").className="signal-status";
         $("backtestStats").hidden=true;
       }
-      $("metricAgeNote").textContent=live?"Provider timestamp age":"Demo feed clock";
+      $("metricAgeNote").textContent=live?"Market timestamp age":"Demo feed clock";
       persist();
     } catch(error) {
       if(context.mode!==$("modeSelect").value||context.marketType!==$("marketType").value||context.asset!==$("asset").value||context.interval!==$("interval").value||context.expiry!==$("expiry").value||context.minScore!==$("minScore").value){
@@ -838,8 +838,8 @@
   });
   $("saveMarketKey").addEventListener("click",()=>{
     if(!$("marketApiKey").value.trim()){alert("Enter your Twelve Data API key first.");return;}
-    persist();$("alertStatus").textContent="Twelve Data key saved in this browser only. Analyze now to test access.";$("alertStatus").className="signal-status good";
-    setFeedStatus("Key saved locally. Analyze now to validate provider access.","warn");
+    persist();$("alertStatus").textContent="Access key saved on this device. Analyze now to check the feed.";$("alertStatus").className="signal-status good";
+    setFeedStatus("Key saved. Analyze now to check access.","warn");
   });
   $("clearMarketKey").addEventListener("click",()=>{
     $("marketApiKey").value="";
