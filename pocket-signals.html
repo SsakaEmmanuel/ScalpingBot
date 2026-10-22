@@ -309,6 +309,7 @@
     $("telegramWebhook").value = saved.webhook || "";
     $("marketApiKey").value = saved.marketApiKey || "";
     syncControls();
+    try { localStorage.removeItem(LEGACY); } catch(e) {}
     renderJournal();
     updateRisk();
   }
