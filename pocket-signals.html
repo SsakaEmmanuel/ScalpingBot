@@ -389,7 +389,11 @@
     let response, data;
     try {
       response = await fetch("https://api.twelvedata.com/time_series?"+params.toString(),{signal:controller.signal,cache:"no-store"});
-      if (!response.ok) throw new Error("Market provider returned HTTP "+response.status+".");
+      if (!response.ok) {
+        if(response.status===429)throw new Error("Twelve Data request quota reached. Wait for the quota window or reduce auto-scan frequency.");
+        if(response.status===401||response.status===403)throw new Error("Twelve Data denied access. Check your API key and provider plan.");
+        throw new Error("Market provider returned HTTP "+response.status+".");
+      }
       data = await response.json();
     } catch (error) {
       if (error && error.name === "AbortError") throw new Error("The market data request timed out. Check your connection and try again.");
@@ -679,6 +683,9 @@
       $("metricAgeNote").textContent=live?"Provider timestamp age":"Demo feed clock";
       persist();
     } catch(error) {
+      if(context.mode!==$("modeSelect").value||context.marketType!==$("marketType").value||context.asset!==$("asset").value||context.interval!==$("interval").value||context.expiry!==$("expiry").value||context.minScore!==$("minScore").value){
+        state.candles=[];return;
+      }
       state.lastFetchError=error.message||"Unknown feed error";
       state.consecutiveErrors++;
       resetMarketState("No reliable signal generated because valid candle data was not available.");
@@ -782,6 +789,7 @@
   function startAutoScan() {
     if(state.autoTimer){clearInterval(state.autoTimer);state.autoTimer=null;$("autoBtn").textContent="Start auto-scan";$("autoBtn").className="btn outline";$("alertChip").textContent="Alerts: manual scan";setFeedStatus("Auto-scan paused. Analyze now remains available.","warn");return;}
     if(isLive()&&!$("marketApiKey").value.trim()){alert("Enter and save the Twelve Data API key before starting Live auto-scan.");return;}
+    state.consecutiveErrors=0;
     const interval=Math.max(60000,Number($("autoRate").value)||300000);
     state.autoTimer=setInterval(()=>{if(!state.busy)analyze({silent:true});},interval);
     $("autoBtn").textContent="Pause auto-scan";$("autoBtn").className="btn danger";
