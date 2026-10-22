@@ -22,6 +22,6 @@ assert.match(html, /api\.twelvedata\.com\/time_series/, "Live time-series integr
 for (const fn of ["evaluateSetup", "runHistoricalTest", "riskSnapshot", "startAutoScan", "exportCsv"]) {
   assert.ok(scriptMatch[1].includes("function " + fn), "Missing required engine feature: " + fn);
 }
-assert.doesNotMatch(html, /simulation/i, "Use Demo/Live naming in the product interface and documentation");
+assert.match(html, /OTC is available in Demo mode only/i, "OTC must be restricted to Demo mode");
 
-console.log("Pocket Signals checks passed: script syntax, required UI, element references, Demo/Live modes, live endpoint, engine features, and terminology.");
+console.log("Pocket Signals checks passed: script syntax, required UI, element references, Demo/Live modes, live endpoint, engine features, and OTC guard.");
