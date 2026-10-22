@@ -1,0 +1,29 @@
+name: Pocket Signals checks
+
+on:
+  push:
+    paths:
+      - "pocket-signals.html"
+      - "tests/check-pocket-signals.mjs"
+      - ".github/workflows/pocket-signals-check.yml"
+  pull_request:
+    paths:
+      - "pocket-signals.html"
+      - "tests/check-pocket-signals.mjs"
+      - ".github/workflows/pocket-signals-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate Pocket Signals page
+        run: node tests/check-pocket-signals.mjs
