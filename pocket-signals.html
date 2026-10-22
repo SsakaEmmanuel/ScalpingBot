@@ -610,7 +610,7 @@
   }
   function paintSignal(signal) {
     state.signal=signal;
-    $("signalSide").textContent=signal.side==="NONE"?"NO SIGNAL":signal.side;
+    $("signalSide").textContent=signal.side==="NONE"?"NO SIGNAL":signal.side==="CALL"?"BUY · CALL": "SELL · PUT";
     $("signalSide").className="signal-side "+(signal.side==="CALL"?"call":signal.side==="PUT"?"put":"neutral");
     $("signalAsset").textContent=signal.asset+" · "+signal.market+" · "+signal.interval+" candles";
     $("scoreValue").textContent=signal.score+" / 100";
