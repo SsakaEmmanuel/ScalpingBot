@@ -1,0 +1,27 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const html = readFileSync(new URL("../pocket-signals.html", import.meta.url), "utf8");
+assert.match(html, /^<!doctype html>/i, "Pocket Signals must be an HTML document");
+
+const scriptMatch = html.match(/<script>([\\s\\S]*?)<\\/script>/i);
+assert.ok(scriptMatch, "Expected one inline application script");
+new Function(scriptMatch[1]);
+
+const ids = new Set([...html.matchAll(/\\bid="([^"]+)"/g)].map(match => match[1]));
+const references = [...scriptMatch[1].matchAll(/\\$\\("([^"]+)"\\)/g)].map(match => match[1]);
+const missing = [...new Set(references.filter(id => !ids.has(id)))];
+assert.deepEqual(missing, [], "Every JavaScript element reference must exist in the HTML");
+
+for (const id of ["modeSelect", "marketType", "asset", "interval", "expiry", "marketApiKey", "priceChart", "runBacktest", "riskSummary", "journalRows", "exportJournal", "autoBtn"]) {
+  assert.ok(ids.has(id), "Missing required UI element: " + id);
+}
+assert.match(html, /option value="demo">Demo<\\/option>/, "Demo mode must be available");
+assert.match(html, /option value="live">Live market data<\\/option>/, "Live mode must be available");
+assert.match(html, /api\\.twelvedata\\.com\\/time_series/, "Live time-series integration must exist");
+for (const fn of ["evaluateSetup", "runHistoricalTest", "riskSnapshot", "startAutoScan", "exportCsv"]) {
+  assert.ok(scriptMatch[1].includes("function " + fn), "Missing required engine feature: " + fn);
+}
+assert.doesNotMatch(html, /simulation/i, "Use Demo/Live naming in the product interface and documentation");
+
+console.log("Pocket Signals checks passed: script syntax, required UI, element references, Demo/Live modes, live endpoint, engine features, and terminology.");
