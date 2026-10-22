@@ -74,6 +74,7 @@
 .signal-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .signal-inline label{display:flex;align-items:center;gap:7px;margin:8px 0}
 .signal-divider{height:1px;background:var(--sig-border);margin:15px 0}
+.analysis-loader{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #4773b8;border-radius:14px;background:linear-gradient(120deg,#102443,#111a2e);margin-bottom:14px}.analysis-spinner{width:34px;height:34px;flex:0 0 34px;border:4px solid #385173;border-top-color:#42d6ad;border-right-color:#1684ff;border-radius:50%;animation:signal-spin .8s linear infinite}.analysis-loader strong{display:block;font-size:14px}.analysis-loader p{margin:4px 0 0;color:var(--sig-muted);font-size:12px;line-height:1.5}.analysis-loader[hidden]{display:none!important}@keyframes signal-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.analysis-spinner{animation:none;border-top-color:#42d6ad}}
 [hidden]{display:none!important}
 @media(max-width:980px){.signal-layout{grid-template-columns:minmax(240px,300px) minmax(0,1fr)}.signal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.signal-statrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.signal-shell{padding:0 12px;margin-top:18px}.signal-layout{grid-template-columns:1fr}.signal-stack:first-child{order:2}.signal-stack:last-child{order:1}.signal-indicators{grid-template-columns:repeat(2,minmax(0,1fr))}.signal-statrow{grid-template-columns:repeat(2,minmax(0,1fr))}.signal-hero h1{font-size:32px}.signal-card{padding:14px}#priceChart{height:195px}}
@@ -163,6 +164,7 @@
 </div>
 <div class="signal-stack">
 <section class="signal-card">
+<div id="analysisLoader" class="analysis-loader" role="status" aria-live="polite" hidden><span class="analysis-spinner" aria-hidden="true"></span><div><strong>Analyzing market conditions…</strong><p>Checking candle freshness, trend alignment, momentum and setup confirmation. Please wait.</p></div></div>
 <div class="signal-workhead">
 <div>
 <div class="eyebrow">SIGNAL ENGINE / RULE-BASED</div>
@@ -625,7 +627,7 @@
   async function analyze(options = {}) {
     if(state.busy)return;
     const context={mode:$("modeSelect").value,marketType:$("marketType").value,asset:$("asset").value,interval:$("interval").value,expiry:$("expiry").value,minScore:$("minScore").value};
-    state.busy=true; $("analyzeBtn").disabled=true;
+    state.busy=true; const analysisStartedAt=Date.now(); $("analyzeBtn").disabled=true; $("analyzeBtn").textContent="Analyzing…"; $("analysisLoader").hidden=false; $("signalReason").textContent="Analysis in progress. The previous signal is not being refreshed until this run completes."; $("signalReason").className="signal-status warn";
     setFeedStatus(isLive()?"Requesting live candles from Twelve Data…":"Preparing Demo candles…","warn");
     try {
       const live=isLive();
@@ -700,7 +702,9 @@
         setFeedStatus("Auto-scan paused after 3 consecutive feed errors to avoid repeated failed requests. Correct the feed, then restart.","bad");
       }
     } finally {
-      state.busy=false;$("analyzeBtn").disabled=false;
+      const remaining=Math.max(0,5000-(Date.now()-analysisStartedAt));
+      if(remaining) await new Promise(resolve=>setTimeout(resolve,remaining));
+      $("analysisLoader").hidden=true; state.busy=false; $("analyzeBtn").disabled=false; $("analyzeBtn").textContent="Analyze now";
     }
   }
   function runHistoricalTest() {
