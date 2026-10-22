@@ -1,12 +1,83 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b1020">
-<title>Pocket Option Signal Lab</title>
+<meta name="description" content="ScalpingBot Pocket Signals: Demo research and Live forex market-data analysis with risk controls and historical candle testing.">
+<title>Pocket Signals | ScalpingBot</title>
 <link rel="stylesheet" href="styles.css?v=blue-yellow-theme-4">
 <style>
-.signal-wrap{max-width:1050px;margin:28px auto;padding:0 16px}.signal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.signal-card{background:#111a2e;border:1px solid #2b3954;border-radius:16px;padding:18px;color:#edf3ff}.signal-card label{display:block;margin:12px 0 6px;color:#aebbd2;font-size:13px}.signal-card input,.signal-card select,.signal-card textarea{width:100%;box-sizing:border-box;border:1px solid #354561;border-radius:9px;background:#0b1222;color:#f4f7ff;padding:11px;font:inherit}.signal-card button{margin:5px 6px 5px 0}.signal-status{padding:12px;border-radius:10px;background:#17243b;color:#d8e4fa;margin-top:12px}.signal-side{font-size:30px;font-weight:800;letter-spacing:.5px}.call{color:#42d6ad}.put{color:#ff8585}.neutral{color:#f5cf75}.small-note{font-size:12px;color:#aebbd2;line-height:1.55}.signal-table{width:100%;border-collapse:collapse;margin-top:10px}.signal-table th,.signal-table td{text-align:left;padding:9px;border-bottom:1px solid #2b3954;font-size:13px}.signal-table th{color:#aebbd2}.chip{display:inline-block;border:1px solid #3b4a66;border-radius:99px;padding:4px 8px;font-size:11px}.risk-row{display:flex;gap:12px;flex-wrap:wrap}.risk-row label{flex:1;min-width:120px}.signal-nav{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.signal-nav a{color:#dce7fb;text-decoration:none}.signal-nav a.active{color:#42d6ad}
+:root{--sig-panel:#111a2e;--sig-border:#293853;--sig-muted:#9eafca;--sig-green:#42d6ad;--sig-red:#ff8585;--sig-gold:#f5cf75}
+.signal-shell{max-width:1440px;margin:26px auto 70px;padding:0 18px}
+.signal-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.signal-hero h1{font-size:clamp(30px,4vw,45px);line-height:1.12;margin:8px 0;letter-spacing:-1.4px}
+.signal-hero p{color:var(--sig-muted);margin:8px 0;max-width:760px;font-size:14px}
+.signal-badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.signal-badge{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--sig-border);border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800;letter-spacing:.4px}
+.signal-badge.demo{color:var(--sig-gold);background:#f5cf7510;border-color:#f5cf7540}
+.signal-badge.live{color:var(--sig-green);background:#42d6ad10;border-color:#42d6ad40}
+.signal-badge.neutral{color:#d6e2f7}
+.signal-layout{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:16px;align-items:start}
+.signal-stack{display:grid;gap:16px;min-width:0}
+.signal-card{background:linear-gradient(145deg,#121d32,#0e1729);border:1px solid var(--sig-border);border-radius:16px;padding:18px;color:#eef4ff;min-width:0;box-shadow:0 12px 30px #0000000a}
+.signal-card h2,.signal-card h3{margin:0 0 12px}
+.signal-card h2{font-size:18px}.signal-card h3{font-size:15px}
+.signal-card .subhead{color:var(--sig-muted);font-size:12px;line-height:1.6;margin:-5px 0 12px}
+.signal-card label{display:block;color:#b8c6dc;font-size:12px;margin:12px 0 6px}
+.signal-card input,.signal-card select,.signal-card textarea{width:100%;box-sizing:border-box;border:1px solid #354561;border-radius:9px;background:#0b1222;color:#f4f7ff;padding:11px;font:inherit;min-width:0}
+.signal-card input[type=checkbox]{width:auto;accent-color:var(--sig-green)}
+.signal-card button{margin:4px 5px 4px 0}
+.signal-card button:disabled{opacity:.45;cursor:not-allowed}
+.signal-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.signal-btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.signal-btnrow .btn{flex:1;min-width:120px}
+.signal-note{font-size:11px;color:var(--sig-muted);line-height:1.6;margin:10px 0 0}
+.signal-status{padding:11px 12px;border-radius:10px;background:#17243b;color:#d8e4fa;margin-top:10px;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.signal-status.good{border:1px solid #42d6ad50;background:#42d6ad0b}
+.signal-status.warn{border:1px solid #f5cf7550;background:#f5cf750b}
+.signal-status.bad{border:1px solid #ff858550;background:#ff85850b}
+.signal-workhead{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;flex-wrap:wrap}
+.signal-side{font-size:clamp(32px,5vw,54px);line-height:1;font-weight:900;letter-spacing:1px;margin:13px 0 8px}
+.signal-side.call{color:var(--sig-green)}.signal-side.put{color:var(--sig-red)}.signal-side.neutral{color:var(--sig-gold)}
+.signal-meta{color:var(--sig-muted);font-size:12px}
+.signal-meter{height:8px;background:#25324a;border-radius:999px;overflow:hidden;margin:8px 0}
+.signal-meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5cf75,#42d6ad);transition:width .25s}
+.signal-chiprow{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+.signal-chip{font-size:10px;border:1px solid #3b4a66;border-radius:999px;padding:5px 8px;color:#cedbf0;background:#0c1424}
+.signal-chart-wrap{margin-top:15px;border:1px solid var(--sig-border);border-radius:12px;padding:10px;background:#0a1221;overflow:hidden}
+.signal-chart-title{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--sig-muted);font-size:11px;margin:0 2px 8px}
+#priceChart{width:100%;height:230px;display:block}
+.signal-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 16px}
+.signal-metric{padding:13px 14px;border-radius:12px;border:1px solid var(--sig-border);background:#111a2e;min-width:0}
+.signal-metric span{display:block;color:var(--sig-muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px}
+.signal-metric strong{display:block;font-size:18px;margin-top:6px;overflow-wrap:anywhere}
+.signal-metric small{display:block;color:var(--sig-muted);font-size:10px;margin-top:3px}
+.signal-indicators{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+.signal-indicator{border:1px solid var(--sig-border);border-radius:10px;background:#0d1627;padding:11px;min-width:0}
+.signal-indicator span{display:block;font-size:10px;color:var(--sig-muted)}
+.signal-indicator strong{display:block;font-size:14px;margin-top:4px;overflow-wrap:anywhere}
+.signal-indicator small{display:block;font-size:10px;color:var(--sig-muted);margin-top:3px}
+.signal-journal-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.signal-statrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:12px 0}
+.signal-stat{background:#0d1627;border:1px solid var(--sig-border);border-radius:10px;padding:12px;min-width:0}
+.signal-stat strong{display:block;font-size:19px;overflow-wrap:anywhere}
+.signal-stat span{display:block;font-size:10px;color:var(--sig-muted);margin-top:3px}
+.signal-table-wrap{overflow-x:auto}
+.signal-table{width:100%;border-collapse:collapse;margin-top:9px;min-width:710px}
+.signal-table th,.signal-table td{text-align:left;padding:10px;border-bottom:1px solid #2b3954;font-size:11px;white-space:nowrap}
+.signal-table th{color:#aebbd2;font-weight:700}
+.signal-table td select{background:#0b1222;color:#f4f7ff;border:1px solid #354561;border-radius:7px;padding:6px;max-width:120px}
+.signal-lock{font-size:11px;color:var(--sig-muted);line-height:1.55}
+.signal-footer{margin:18px 0;color:var(--sig-muted);font-size:11px;line-height:1.7}
+.signal-link{color:var(--sig-green);text-decoration:underline;text-underline-offset:3px}
+.signal-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.signal-inline label{display:flex;align-items:center;gap:7px;margin:8px 0}
+.signal-divider{height:1px;background:var(--sig-border);margin:15px 0}
+[hidden]{display:none!important}
+@media(max-width:980px){.signal-layout{grid-template-columns:minmax(240px,300px) minmax(0,1fr)}.signal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.signal-statrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.signal-shell{padding:0 12px;margin-top:18px}.signal-layout{grid-template-columns:1fr}.signal-stack:first-child{order:2}.signal-stack:last-child{order:1}.signal-indicators{grid-template-columns:repeat(2,minmax(0,1fr))}.signal-statrow{grid-template-columns:repeat(2,minmax(0,1fr))}.signal-hero h1{font-size:32px}.signal-card{padding:14px}#priceChart{height:195px}}
+@media(prefers-reduced-motion:reduce){.signal-meter span{transition:none}}
 </style>
 </head>
 <body class="workspace-page">
@@ -14,194 +85,718 @@
 <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Scalping<span class="accent">Bot</span></span></a>
 <nav class="workspace-links signal-nav"><a href="dashboard.html">Overview</a><a href="market.html">Market Analysis</a><a href="demo.html">Demo Trading</a><a class="active" href="pocket-signals.html">Pocket Signals</a></nav>
 </header>
-<main class="signal-wrap">
-<div class="eyebrow">● SIGNAL-ONLY · DEMO FIRST</div>
-<h1>Pocket Option <span class="gradient">Signal Lab</span></h1>
-<p class="lead">One-minute CALL / PUT analysis with paper testing and risk guards. No Pocket Option login, no live orders.</p>
-<div class="signal-status" role="status"><strong>DATA STATUS: SIMULATED DEMO</strong><br>Signals generated from synthetic test candles are for testing the interface only. They are not live forex quotes and do not represent Pocket Option OTC prices.</div>
-<div class="signal-grid" style="margin-top:16px">
+<main class="signal-shell">
+<section class="signal-hero">
+<div>
+<div class="eyebrow">SCALPINGBOT / SIGNAL DESK</div>
+<h1>Pocket Signals <span class="gradient">Pro</span></h1>
+<p>Market-data analysis, indicator alignment, controlled alerts and historical candle tests — with separate Demo and Live modes.</p>
+</div>
+<div class="signal-badges">
+<span id="modeBadge" class="signal-badge demo">● DEMO MODE</span>
+<span id="connectionBadge" class="signal-badge neutral">● FEED NOT CHECKED</span>
+</div>
+</section>
+<section class="signal-metrics" aria-label="Live market metrics">
+<div class="signal-metric"><span>Latest close</span><strong id="metricPrice">—</strong><small id="metricAsset">Waiting for candles</small></div>
+<div class="signal-metric"><span>Trend alignment</span><strong id="metricTrend">—</strong><small id="metricTrendNote">EMA 9 / EMA 21</small></div>
+<div class="signal-metric"><span>RSI (14)</span><strong id="metricRsi">—</strong><small id="metricRsiNote">Momentum filter</small></div>
+<div class="signal-metric"><span>Feed age</span><strong id="metricAge">—</strong><small id="metricAgeNote">Timestamp not available</small></div>
+</section>
+<section class="signal-layout">
+<div class="signal-stack">
 <section class="signal-card">
-<h3>Market setup</h3>
-<label for="marketType">Market</label><select id="marketType"><option value="forex">Forex (demo)</option><option value="otc">Pocket Option OTC (simulation only)</option></select>
-<label for="asset">Asset</label><select id="asset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>EUR/JPY</option><option>Gold (XAU/USD)</option></select>
-<label for="expiry">Signal expiry</label><select id="expiry"><option value="60">1 minute</option></select>
-<label for="dataMode">Candle source</label><select id="dataMode"><option value="simulation">Synthetic demo candles</option><option value="manual">Enter recent candle closes</option><option value="live">Live forex candles (Twelve Data)</option></select>
-<div id="apiBox" hidden><label for="marketApiKey">Twelve Data API key</label><input id="marketApiKey" type="password" autocomplete="off" placeholder="Paste your key here"><button class="btn outline full" id="saveMarketKey" type="button">Save key on this device</button><p class="small-note">The key is stored in this browser's local storage and is visible to anyone who can inspect this page in your browser. Do not use a sensitive or paid key in a public/shared device.</p></div>
-<div id="manualBox" hidden><label for="manualCloses">Recent closes, oldest to newest (comma-separated numbers; at least 8)</label><textarea id="manualCloses" rows="3" placeholder="1.0840, 1.0842, 1.0841, ..."></textarea></div>
-<button class="btn primary full" id="analyzeBtn" type="button">Analyze for signal</button>
-<div class="signal-status" id="feedStatus">Synthetic demo candles only — not live market data.</div><p class="small-note">Forex candles are supplied by Twelve Data when selected. OTC prices are not provided by this feed. Market data may be delayed and can differ from Pocket Option.</p>
+<h2>Control room</h2>
+<p class="subhead">Choose the operating mode and market. Live mode reads provider candles and sends alerts only; it does not place trades.</p>
+<label for="modeSelect">Operating mode</label>
+<select id="modeSelect"><option value="demo">Demo</option><option value="live">Live market data</option></select>
+<label for="marketType">Market type</label>
+<select id="marketType"><option value="forex">Forex</option><option value="otc">Pocket Option OTC — Demo only</option></select>
+<label for="asset">Asset</label>
+<select id="asset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>EUR/JPY</option><option>Gold (XAU/USD)</option></select>
+<div class="signal-two">
+<div><label for="interval">Candle timeframe</label><select id="interval"><option value="1min">1 minute</option><option value="5min">5 minutes</option><option value="15min">15 minutes</option></select></div>
+<div><label for="expiry">Expiry horizon</label><select id="expiry"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option></select></div>
+</div>
+<div id="apiBox" hidden>
+<div class="signal-divider"></div>
+<label for="marketApiKey">Twelve Data API key</label>
+<input id="marketApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your private API key">
+<div class="signal-btnrow"><button class="btn outline" id="saveMarketKey" type="button">Save key</button><button class="btn outline" id="clearMarketKey" type="button">Forget key</button></div>
+<p class="signal-note">Saved only in this browser on this device. A browser-side key is not secret from someone who can inspect the device or browser. Do not use this page on a shared device with a paid key.</p>
+</div>
+<div class="signal-two">
+<div><label for="autoRate">Auto-scan interval</label><select id="autoRate"><option value="60000">Every 1 minute</option><option value="300000" selected>Every 5 minutes</option></select></div>
+<div><label for="minScore">Minimum setup score</label><select id="minScore"><option value="55">55 / 100</option><option value="60" selected>60 / 100</option><option value="70">70 / 100</option><option value="80">80 / 100</option></select></div>
+</div>
+<div class="signal-btnrow">
+<button class="btn primary" id="analyzeBtn" type="button">Analyze now</button>
+<button class="btn outline" id="autoBtn" type="button">Start auto-scan</button>
+</div>
+<div id="feedStatus" class="signal-status warn" role="status" aria-live="polite">Choose Demo or Live and analyze to check the feed.</div>
+<p class="signal-note">Live requests use Twelve Data. The latest bar can still be forming. Live market quotes may differ from Pocket Option and this provider does not supply Pocket Option OTC quotes.</p>
 </section>
 <section class="signal-card">
-<h3>Latest signal</h3>
-<div id="signalSide" class="signal-side neutral">NO SIGNAL</div>
-<p id="signalAsset">Choose a market and analyze candles.</p>
-<div class="risk-row"><span class="chip" id="confidenceChip">Confidence: —</span><span class="chip" id="expiryChip">Expiry: 1 minute</span></div>
-<p id="signalReason" class="signal-status">Wait for a valid setup. Avoid forcing entries.</p>
-<p id="signalTime" class="small-note">No signal generated yet.</p>
-<button class="btn outline" id="copySignal" type="button">Copy signal text</button>
-<button class="btn outline" id="markPaper" type="button">Log demo result</button>
+<h3>Risk guard</h3>
+<p class="subhead">Limits control alerts and paper entries. They do not change any broker account or execute orders.</p>
+<div class="signal-two">
+<div><label for="demoBalanceInput">Reference balance (USD)</label><input id="demoBalanceInput" type="number" min="1" step="1" value="1000"></div>
+<div><label for="riskPct">Risk per entry</label><select id="riskPct"><option value="0.25">0.25%</option><option value="0.5" selected>0.50%</option><option value="1">1.00%</option></select></div>
+</div>
+<div class="signal-two">
+<div><label for="dailyLimit">Daily loss limit</label><select id="dailyLimit"><option value="1">1%</option><option value="2" selected>2%</option><option value="3">3%</option><option value="5">5%</option></select></div>
+<div><label for="maxSignals">Max entries / day</label><select id="maxSignals"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="20">20</option></select></div>
+</div>
+<label for="payoutPct">Reference payout for paper test</label>
+<select id="payoutPct"><option value="70">70%</option><option value="80" selected>80%</option><option value="85">85%</option><option value="90">90%</option></select>
+<div class="signal-status" id="riskSummary">Risk budget: $5.00 · Daily loss limit: $20.00 · Paper P/L: $0.00</div>
+<div class="signal-lock" id="riskLockText">Risk guard ready. New paper entries will be blocked at the daily limit.</div>
 </section>
 <section class="signal-card">
-<h3>Risk controls</h3>
-<label for="demoBalanceInput">Demo balance (USD)</label><input id="demoBalanceInput" type="number" min="1" step="1" value="1000">
-<label for="riskPct">Risk per idea (%)</label><select id="riskPct"><option value="0.25">0.25%</option><option value="0.5" selected>0.5%</option><option value="1">1%</option></select>
-<label for="dailyLimit">Daily stop limit (%)</label><select id="dailyLimit"><option value="1">1%</option><option value="2" selected>2%</option><option value="3">3%</option></select>
-<label for="maxSignals">Max demo entries per day</label><select id="maxSignals"><option>3</option><option selected>5</option><option>10</option></select>
-<div class="signal-status" id="riskSummary">Risk budget: $5.00 per idea · Daily stop: $20.00</div>
-<p class="small-note">Binary-option payouts and loss amounts vary by platform. This budget is a demo discipline limit, not a guarantee or a position-size calculation.</p>
-</section>
-<section class="signal-card">
-<h3>Alerts</h3>
-<label for="telegramWebhook">Your secure Telegram relay URL (optional)</label><input id="telegramWebhook" type="url" placeholder="https://your-server.example/telegram-alert">
-<button class="btn outline full" id="saveAlertSettings" type="button">Save alert setting on this device</button>
-<div class="signal-status" id="alertStatus">In-app alerts are enabled. Telegram requires your own secure server endpoint; bot tokens must never be placed in this page.</div>
-<p class="small-note">The relay should accept POST JSON containing signal details and keep the Telegram bot token on the server. Do not paste a Telegram bot token here.</p>
+<h3>Alerts and notifications</h3>
+<label for="telegramWebhook">Optional HTTPS Telegram relay endpoint</label>
+<input id="telegramWebhook" type="url" autocomplete="off" placeholder="https://your-server.example/telegram-alert">
+<div class="signal-btnrow"><button class="btn outline" id="saveAlertSettings" type="button">Save relay</button><button class="btn outline" id="testNotification" type="button">Test browser alert</button></div>
+<div class="signal-status" id="alertStatus" role="status" aria-live="polite">Browser alerts are available after notification permission is granted. Telegram needs your own server relay.</div>
+<p class="signal-note">Never put a Telegram bot token in this page. The relay must keep its token on the server and allow requests from this page with appropriate CORS settings.</p>
 </section>
 </div>
-<section class="signal-card" style="margin-top:14px">
-<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Demo signal journal</h3><button class="btn outline" id="clearJournal" type="button">Clear journal</button></div>
-<div class="risk-row"><div><strong id="journalCount">0</strong><div class="small-note">Logged entries</div></div><div><strong id="winCount">0</strong><div class="small-note">Marked wins</div></div><div><strong id="lossCount">0</strong><div class="small-note">Marked losses</div></div><div><strong id="winRate">—</strong><div class="small-note">Marked win rate</div></div></div>
-<div style="overflow-x:auto"><table class="signal-table"><thead><tr><th>Time</th><th>Market</th><th>Signal</th><th>Source</th><th>Result</th></tr></thead><tbody id="journalRows"><tr><td colspan="5">No demo entries yet.</td></tr></tbody></table></div>
+<div class="signal-stack">
+<section class="signal-card">
+<div class="signal-workhead">
+<div>
+<div class="eyebrow">SIGNAL ENGINE / RULE-BASED</div>
+<div id="signalSide" class="signal-side neutral">NO SIGNAL</div>
+<div id="signalAsset" class="signal-meta">Analyze market candles to begin.</div>
+</div>
+<div style="min-width:130px;max-width:190px;flex:1">
+<div class="signal-inline" style="justify-content:space-between"><span class="signal-note">Setup score</span><strong id="scoreValue">— / 100</strong></div>
+<div class="signal-meter" aria-label="Setup score"><span id="scoreMeter"></span></div>
+<div id="scoreLabel" class="signal-note">No setup evaluated yet</div>
+</div>
+</div>
+<div class="signal-chiprow">
+<span id="modeChip" class="signal-chip">Mode: Demo</span>
+<span id="expiryChip" class="signal-chip">Expiry: 1 minute</span>
+<span id="candleChip" class="signal-chip">Candles: —</span>
+<span id="alertChip" class="signal-chip">Alerts: armed after setup</span>
+</div>
+<div id="signalReason" class="signal-status">Wait for a confirmed candle pattern. The setup score is a rule-based quality score, not a win probability.</div>
+<div class="signal-chart-wrap">
+<div class="signal-chart-title"><span id="chartTitle">Price candles + EMA 9 / EMA 21</span><span id="chartTimestamp">No candle data</span></div>
+<canvas id="priceChart" width="900" height="260" aria-label="Price candle chart with moving average overlays">Chart appears after candles load.</canvas>
+</div>
+<div class="signal-indicators">
+<div class="signal-indicator"><span>EMA 9 / 21</span><strong id="indTrend">—</strong><small id="indTrendDetail">Trend direction</small></div>
+<div class="signal-indicator"><span>RSI (14)</span><strong id="indRsi">—</strong><small id="indRsiDetail">Momentum pressure</small></div>
+<div class="signal-indicator"><span>Breakout check</span><strong id="indBreakout">—</strong><small id="indBreakoutDetail">Recent range</small></div>
+<div class="signal-indicator"><span>Momentum</span><strong id="indMomentum">—</strong><small id="indMomentumDetail">Last 3 bars</small></div>
+<div class="signal-indicator"><span>Volatility</span><strong id="indVolatility">—</strong><small id="indVolatilityDetail">Recent candle range</small></div>
+<div class="signal-indicator"><span>Data integrity</span><strong id="indIntegrity">—</strong><small id="indIntegrityDetail">Timestamp and bars</small></div>
+</div>
+<div class="signal-btnrow">
+<button class="btn primary" id="logPaper" type="button" disabled>Log paper entry</button>
+<button class="btn outline" id="copySignal" type="button" disabled>Copy signal</button>
+</div>
+<p class="signal-note">A CALL or PUT is a directional observation only. One-minute trades are highly noisy. Confirm the quote, candle time and platform payout yourself.</p>
 </section>
-<p class="small-note" style="margin:18px 2px">Trading involves a risk of loss. One-minute binary options are highly volatile. A confidence score is a rule-based setup score, not a calibrated probability of winning. Test extensively before relying on any strategy.</p>
+<section class="signal-card">
+<div class="signal-journal-top">
+<div><h3>Historical candle test</h3><p class="subhead">Walk-forward check on fetched or Demo candles using only earlier bars for each signal.</p></div>
+<button class="btn outline" id="runBacktest" type="button" disabled>Run candle test</button>
+</div>
+<div id="backtestStatus" class="signal-status">Analyze a set of at least 60 candles to enable the historical test.</div>
+<div id="backtestStats" class="signal-statrow" hidden>
+<div class="signal-stat"><strong id="btTrades">0</strong><span>Signals tested</span></div>
+<div class="signal-stat"><strong id="btWins">0</strong><span>Higher / lower wins</span></div>
+<div class="signal-stat"><strong id="btRate">—</strong><span>Directional hit rate</span></div>
+<div class="signal-stat"><strong id="btScore">—</strong><span>Average setup score</span></div>
+<div class="signal-stat"><strong id="btHorizon">—</strong><span>Test horizon</span></div>
+</div>
+<p class="signal-note">This is a next-horizon candle comparison, not a broker execution replay. It omits platform price differences, ties, latency, payout changes, spread and slippage. A small historical sample is not evidence of future performance.</p>
+</section>
+</div>
+</section>
+<section class="signal-card" style="margin-top:16px">
+<div class="signal-journal-top">
+<div><h2>Signal journal</h2><p class="subhead">Record Demo observations or Live-data alerts, then mark the result after the chosen horizon. Outcomes are manually marked.</p></div>
+<div class="signal-btnrow" style="margin:0"><button class="btn outline" id="exportJournal" type="button">Export CSV</button><button class="btn outline" id="clearJournal" type="button">Clear journal</button></div>
+</div>
+<div class="signal-statrow">
+<div class="signal-stat"><strong id="journalCount">0</strong><span>Paper entries</span></div>
+<div class="signal-stat"><strong id="winCount">0</strong><span>Wins marked</span></div>
+<div class="signal-stat"><strong id="lossCount">0</strong><span>Losses marked</span></div>
+<div class="signal-stat"><strong id="winRate">—</strong><span>Marked hit rate</span></div>
+<div class="signal-stat"><strong id="journalPnl">$0.00</strong><span>Paper P/L</span></div>
+</div>
+<div class="signal-table-wrap"><table class="signal-table"><thead><tr><th>Time</th><th>Mode / Market</th><th>Asset</th><th>Signal</th><th>Score</th><th>Risk budget</th><th>Result</th><th>Paper P/L</th></tr></thead><tbody id="journalRows"><tr><td colspan="8">No journal entries yet.</td></tr></tbody></table></div>
+</section>
+<footer class="signal-footer">ScalpingBot is a signal research tool. Live mode reads third-party market data and can send notifications, but it does not log in to Pocket Option or place trades. Setup scores are not calibrated probabilities. Twelve Data reference: <a class="signal-link" href="https://twelvedata.com/docs" target="_blank" rel="noopener noreferrer">API documentation</a>. Never expose provider or Telegram secrets in public code.</footer>
 </main>
 <script>
 (() => {
+  "use strict";
   const $ = id => document.getElementById(id);
-  const state = { signal:null, journal:[], dailyCount:0, dailyLoss:0, day:new Date().toISOString().slice(0,10) };
-  const storageKey = "pocketSignalLab-v1";
-  const fmt = n => Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  function load() {
-    try { const saved = JSON.parse(localStorage.getItem(storageKey)||"{}"); if(Array.isArray(saved.journal)) state.journal=saved.journal; if(saved.day===state.day){state.dailyCount=saved.dailyCount||0;state.dailyLoss=saved.dailyLoss||0;} $("telegramWebhook").value=saved.webhook||""; $("marketApiKey").value=saved.marketApiKey||""; } catch(e) {}
-    renderJournal(); updateRisk();
+  const STORE = "pocketSignalLab-v2";
+  const LEGACY = "pocketSignalLab-v1";
+  const state = {
+    candles: [], signal: null, journal: [], meta: null, feedMode: "demo",
+    feedTime: null, autoTimer: null, busy: false, lastAlertFingerprint: "",
+    lastAnalysisAt: null, lastFetchError: ""
+  };
+  const fmtMoney = n => (n < 0 ? "-$" : "$") + Math.abs(Number(n) || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const round = (n,d=2) => Number(n).toFixed(d);
+  const localDayKey = (date = new Date()) => [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
+  const isLive = () => $("modeSelect").value === "live";
+  const timeframeMinutes = () => parseInt($("interval").value,10) || 1;
+  const expiryMinutes = () => parseInt($("expiry").value,10) || 1;
+  const escapeHtml = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+  function loadSettings() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem(LEGACY) || "{}"); } catch(e) { saved = {}; }
+    if (saved.mode === "live" || saved.mode === "demo") $("modeSelect").value = saved.mode;
+    if (saved.asset && Array.from($("asset").options).some(x=>x.value===saved.asset || x.text===saved.asset)) $("asset").value = saved.asset;
+    if (saved.marketType === "forex" || saved.marketType === "otc") $("marketType").value = saved.marketType;
+    if (["1min","5min","15min"].includes(saved.interval)) $("interval").value = saved.interval;
+    if (["1","5","15"].includes(String(saved.expiry))) $("expiry").value = String(saved.expiry);
+    if (["55","60","70","80"].includes(String(saved.minScore))) $("minScore").value = String(saved.minScore);
+    if (["0.25","0.5","1"].includes(String(saved.riskPct))) $("riskPct").value = String(saved.riskPct);
+    if (["1","2","3","5"].includes(String(saved.dailyLimit))) $("dailyLimit").value = String(saved.dailyLimit);
+    if (["3","5","10","20"].includes(String(saved.maxSignals))) $("maxSignals").value = String(saved.maxSignals);
+    if (["70","80","85","90"].includes(String(saved.payoutPct))) $("payoutPct").value = String(saved.payoutPct);
+    if (["60000","300000"].includes(String(saved.autoRate))) $("autoRate").value = String(saved.autoRate);
+    if (saved.demoBalance) $("demoBalanceInput").value = saved.demoBalance;
+    if (Array.isArray(saved.journal)) state.journal = saved.journal;
+    state.lastAlertFingerprint = saved.lastAlertFingerprint || "";
+    $("telegramWebhook").value = saved.webhook || "";
+    $("marketApiKey").value = saved.marketApiKey || "";
+    syncControls();
+    renderJournal();
+    updateRisk();
   }
   function persist() {
-    try { localStorage.setItem(storageKey,JSON.stringify({journal:state.journal,day:state.day,dailyCount:state.dailyCount,dailyLoss:state.dailyLoss,webhook:$("telegramWebhook").value.trim(),marketApiKey:$("marketApiKey").value.trim()})); } catch(e) {}
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        mode:$("modeSelect").value,asset:$("asset").value,marketType:$("marketType").value,
+        interval:$("interval").value,expiry:$("expiry").value,minScore:$("minScore").value,
+        riskPct:$("riskPct").value,dailyLimit:$("dailyLimit").value,maxSignals:$("maxSignals").value,
+        payoutPct:$("payoutPct").value,autoRate:$("autoRate").value,demoBalance:$("demoBalanceInput").value,
+        journal:state.journal,webhook:$("telegramWebhook").value.trim(),
+        marketApiKey:$("marketApiKey").value.trim(),lastAlertFingerprint:state.lastAlertFingerprint
+      }));
+    } catch(e) { setFeedStatus("Browser storage is unavailable. Settings may not persist after this page closes.","warn"); }
   }
-  function riskStatus() {
-    const balance=Math.max(0,Number($("demoBalanceInput").value)||0), pct=Number($("riskPct").value)||0.5, limit=Number($("dailyLimit").value)||2;
-    const riskPerIdea=balance*pct/100, dailyStop=balance*limit/100;
-    const losses=state.journal.filter(x=>x.time.slice(0,10)===state.day&&x.result==="loss").length;
-    const estimatedLoss=losses*riskPerIdea;
-    return {balance,pct,limit,riskPerIdea,dailyStop,estimatedLoss,blocked:state.dailyCount>=Number($("maxSignals").value)||estimatedLoss>=dailyStop};
+  function syncControls() {
+    const live = isLive();
+    $("apiBox").hidden = !live;
+    $("modeBadge").className = "signal-badge " + (live ? "live" : "demo");
+    $("modeBadge").textContent = live ? "● LIVE DATA MODE" : "● DEMO MODE";
+    $("modeChip").textContent = "Mode: " + (live ? "Live data" : "Demo");
+    $("marketType").disabled = live;
+    if (live) $("marketType").value = "forex";
+    $("asset").options[5].text = "Gold (XAU/USD)";
+    $("expiryChip").textContent = "Expiry: " + expiryMinutes() + " minute" + (expiryMinutes()===1?"":"s");
+    $("chartTitle").textContent = $("asset").value + " · " + $("interval").selectedOptions[0].text + " candles + EMA overlays";
+    $("modeBadge").title = live ? "Live third-party market data and alerting only; no broker orders." : "Demo data only; no broker orders.";
+    persist();
   }
-  function updateRisk() {
-    const r=riskStatus();
-    $("riskSummary").textContent="Risk budget: $"+fmt(r.riskPerIdea)+" per idea · Daily stop: $"+fmt(r.dailyStop)+" · Estimated demo losses: $"+fmt(r.estimatedLoss)+" · Entries: "+state.dailyCount+"/"+$("maxSignals").value+(r.blocked?" · RISK LOCK ACTIVE":"");
+  function setFeedStatus(message, kind = "warn") {
+    const el = $("feedStatus");
+    el.className = "signal-status " + kind;
+    el.textContent = message;
+    $("connectionBadge").className = "signal-badge " + (kind === "good" ? "live" : kind === "bad" ? "demo" : "neutral");
+    $("connectionBadge").textContent = kind === "good" ? "● FEED READY" : kind === "bad" ? "● FEED ERROR" : "● FEED CHECK";
   }
-  function candlesFromCloses(closes) { return closes.map((close,i)=>({open:i?closes[i-1]:close-(closes[1]-closes[0]),close})); }
-  function syntheticCandles() {
-    const seed=Date.now()%100000, arr=[]; let p=1.08+(seed%1000)/100000;
-    for(let i=0;i<30;i++){const drift=Math.sin((i+seed/1000)/3)*0.00012+(i%7<4?0.000025:-0.00003); const change=drift+((Math.sin(i*7.31+seed)*100)%100)*0.000001; const open=p; p=Math.max(0.5,p+change); arr.push({open,close:p});}
-    return arr;
+  function assetBase() {
+    return {"EUR/USD":1.082,"GBP/USD":1.276,"USD/JPY":149.8,"AUD/USD":0.662,"EUR/JPY":162.3,"Gold (XAU/USD)":2380}[$("asset").value] || 1.082;
   }
-  function scoreSignal(candles) {
-    if(candles.length<8) return {side:"NONE",score:0,reason:"Need at least 8 closes."};
-    const c=candles.map(x=>x.close), recent=c.slice(-5), last=c[c.length-1], prev=c[c.length-2];
-    const changes=[]; for(let i=Math.max(1,c.length-6);i<c.length;i++) changes.push(c[i]-c[i-1]);
-    const up=changes.filter(x=>x>0).length, down=changes.filter(x=>x<0).length;
-    const avg=changes.reduce((a,b)=>a+b,0)/changes.length, momentum=last-prev;
-    const prior=c.slice(-8,-2), high=Math.max(...prior), low=Math.min(...prior);
-    const breakoutUp=last>high, breakoutDown=last<low;
-    const sameWay=momentum>0?up:down;
-    const net=Math.abs(last-c[c.length-5]), noise=changes.reduce((a,b)=>a+Math.abs(b),0);
-    const efficiency=noise?net/noise:0;
-    let side="NONE", score=0, reasons=[];
-    if(momentum>0 && up>=4){side="CALL";score+=35;reasons.push("recent closes show upward momentum");}
-    if(momentum<0 && down>=4){side="PUT";score+=35;reasons.push("recent closes show downward momentum");}
-    if(side==="CALL"&&breakoutUp){score+=25;reasons.push("close broke above the recent range");}
-    if(side==="PUT"&&breakoutDown){score+=25;reasons.push("close broke below the recent range");}
-    if(efficiency>0.55){score+=20;reasons.push("movement is relatively directional");}
-    if(Math.abs(momentum)>0 && sameWay>=5){score+=10;reasons.push("most recent moves agree");}
-    score=Math.min(90,score);
-    if(side==="NONE"||score<55) return {side:"NONE",score,reason:"No clear price-action setup. "+(reasons.join("; ")||"Recent movement is mixed.")};
-    return {side,score,reason:reasons.join("; ")+". Wait for the next candle confirmation; this is not a win probability."};
-  }
-  function sendAlert(signal) {
-    const msg="Pocket Signal Lab · DEMO\n"+signal.asset+" · "+signal.market+"\n"+signal.side+" · 1 minute\nSetup score: "+signal.score+"/90\n"+signal.reason+"\nSource: "+signal.source+"\nNot financial advice; verify the market manually.";
-    $("signalStatus") && ($("signalStatus").textContent=msg);
-    if("Notification" in window && Notification.permission==="granted") new Notification("Pocket signal: "+signal.side,{body:signal.asset+" · 1m · "+signal.score+"/90 setup score"});
-    const url=$("telegramWebhook").value.trim();
-    if(url) {
-      try { const u=new URL(url); if(u.protocol!=="https:") throw new Error("HTTPS required"); fetch(u.href,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:msg,signal:{asset:signal.asset,market:signal.market,side:signal.side,expirySeconds:60,score:signal.score,source:signal.source,createdAt:signal.createdAt}}),mode:"cors"}).then(r=>{if(!r.ok) throw new Error("Relay returned "+r.status);$("alertStatus").textContent="Telegram relay accepted the alert.";}).catch(()=>{$("alertStatus").textContent="Telegram relay failed. Check the HTTPS endpoint, CORS, and server logs.";}); } catch(e) { $("alertStatus").textContent="Telegram relay URL must be a valid HTTPS URL."; }
+  function generateDemoCandles(count = 150) {
+    const base = assetBase(), isJPY = $("asset").value.includes("JPY"), gold = $("asset").value.includes("Gold");
+    const unit = gold ? 1.5 : isJPY ? 0.035 : base * 0.00022;
+    const now = Date.now(), step = timeframeMinutes() * 60000, candles = [];
+    let price = base, drift = 0;
+    for (let i = count-1; i >= 0; i--) {
+      const t = now - i*step;
+      if (i % 19 === 0) drift = (Math.random() - 0.5) * unit * 0.7;
+      const open = price;
+      const cyclical = Math.sin((count-i)/8) * unit * 0.16;
+      const change = drift + cyclical + (Math.random()-0.5) * unit * 1.35;
+      const close = Math.max(base * 0.5,open + change);
+      const wick = Math.random() * unit * 0.5;
+      candles.push({
+        time:new Date(t).toISOString(),timeMs:t,open,
+        high:Math.max(open,close)+wick,low:Math.min(open,close)-wick,close,
+        volume:null
+      });
+      price = close;
     }
-  }
-  async function fetchLiveForexCandles() {
-    const key=$("marketApiKey").value.trim();
-    if(!key) throw new Error("Enter your Twelve Data API key first.");
-    const pairMap={"EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","AUD/USD":"AUD/USD","EUR/JPY":"EUR/JPY","Gold (XAU/USD)":"XAU/USD"};
-    const pair=pairMap[$("asset").value]||"EUR/USD";
-    const url="https://api.twelvedata.com/time_series?symbol="+encodeURIComponent(pair)+"&interval=1min&outputsize=30&apikey="+encodeURIComponent(key);
-    const response=await fetch(url);
-    if(!response.ok) throw new Error("Market-data provider returned HTTP "+response.status+".");
-    const data=await response.json();
-    if(data.status==="error"||!Array.isArray(data.values)) throw new Error(data.message||"No candle data returned. Check API key, quota, symbol and provider access.");
-    const candles=data.values.slice().reverse().map(v=>({open:Number(v.open),close:Number(v.close),time:v.datetime})).filter(v=>Number.isFinite(v.open)&&Number.isFinite(v.close)&&v.open>0&&v.close>0);
-    if(candles.length<8) throw new Error("Provider returned fewer than 8 valid candles.");
-    $("feedStatus").textContent="Forex candles received from Twelve Data. Latest candle: "+(data.values[0].datetime||"time unavailable")+". Quotes may be delayed and can differ from Pocket Option.";
     return candles;
   }
-  async function analyze() {
-    const source=$("dataMode").value, closesInput=$("manualCloses").value;
-    let candles;
-    $("analyzeBtn").disabled=true; $("feedStatus").textContent="Loading candle data…";
+  function providerTimeMs(value) {
+    if (!value) return null;
+    const d = new Date(String(value).replace(" ","T") + "Z");
+    const t = d.getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  async function fetchLiveCandles() {
+    const key = $("marketApiKey").value.trim();
+    if (!key) throw new Error("Enter your Twelve Data API key, then select Save key.");
+    if ($("marketType").value === "otc") throw new Error("Pocket Option OTC prices are not available from this forex provider. Switch to Demo for OTC.");
+    const pairMap = {"EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","AUD/USD":"AUD/USD","EUR/JPY":"EUR/JPY","Gold (XAU/USD)":"XAU/USD"};
+    const pair = pairMap[$("asset").value] || "EUR/USD";
+    const params = new URLSearchParams({symbol:pair,interval:$("interval").value,outputsize:"150",timezone:"UTC",order:"desc",apikey:key});
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(),12000);
+    let response, data;
     try {
-      if(source==="manual") {
-        const closes=closesInput.split(",").map(x=>Number(x.trim())).filter(x=>Number.isFinite(x)&&x>0);
-        if(closes.length<8) throw new Error("Enter at least 8 valid positive closing prices, oldest to newest.");
-        candles=candlesFromCloses(closes);
-      } else if(source==="live") {
-        if($("marketType").value==="otc") throw new Error("Twelve Data supplies forex market data, not Pocket Option OTC prices. Switch to Forex or choose simulation/manual candles.");
-        candles=await fetchLiveForexCandles();
-      } else {
-        candles=syntheticCandles();
-        $("feedStatus").textContent="Synthetic demo candles only — not live market data.";
-      }
-    } catch(error) {
-      $("feedStatus").textContent="Feed error: "+error.message;
-      $("signalSide").textContent="NO SIGNAL"; $("signalSide").className="signal-side neutral";
-      $("signalReason").textContent="No signal generated because reliable candle data was not available.";
-      $("analyzeBtn").disabled=false; return;
+      response = await fetch("https://api.twelvedata.com/time_series?"+params.toString(),{signal:controller.signal,cache:"no-store"});
+      if (!response.ok) throw new Error("Market provider returned HTTP "+response.status+".");
+      data = await response.json();
+    } catch (error) {
+      if (error && error.name === "AbortError") throw new Error("The market data request timed out. Check your connection and try again.");
+      throw error;
+    } finally { clearTimeout(timeout); }
+    if (data.status === "error" || !Array.isArray(data.values)) {
+      const message = data.message || "No candle data returned.";
+      if (/api.?key|unauthorized|permission|invalid.*key/i.test(message)) throw new Error("Twelve Data rejected the key or access. Check the key and the provider plan.");
+      if (/limit|credit|429|too many/i.test(message)) throw new Error("Twelve Data request quota reached. Wait for the quota window or reduce auto-scan frequency.");
+      throw new Error(message);
     }
-    const res=scoreSignal(candles), market=$("marketType").value==="otc"?"OTC simulation":source==="live"?"Forex · Twelve Data":"Forex demo";
-    const sourceLabel=source==="manual"?"User-entered closes":source==="live"?"Twelve Data 1-minute candles":"Synthetic demo candles";
-    state.signal={side:res.side,score:res.score,reason:res.reason,asset:$("asset").value,market,source:sourceLabel,createdAt:new Date().toISOString()};
-    $("signalSide").textContent=res.side==="NONE"?"NO SIGNAL":res.side;
-    $("signalSide").className="signal-side "+(res.side==="CALL"?"call":res.side==="PUT"?"put":"neutral");
-    $("signalAsset").textContent=state.signal.asset+" · "+market;
-    $("confidenceChip").textContent="Setup score: "+res.score+"/90";
-    $("signalReason").textContent=res.reason;
-    $("signalTime").textContent=new Date().toLocaleString()+" · "+state.signal.source;
-    $("analyzeBtn").disabled=false;
-    if(res.side!=="NONE") {
-      if(state.dailyCount>=Number($("maxSignals").value)){ $("signalReason").textContent="Daily demo entry cap reached. "+res.reason; }
-      else if(riskStatus().blocked) { $("signalReason").textContent="Risk lock active: daily entry cap or daily loss limit reached. No new demo entry should be logged. "+res.reason; }
-      else { if("Notification" in window && Notification.permission==="default") Notification.requestPermission().catch(()=>{}); sendAlert(state.signal); }
+    const candles = data.values.map(v => ({
+      time:v.datetime,timeMs:providerTimeMs(v.datetime),open:Number(v.open),
+      high:Number(v.high),low:Number(v.low),close:Number(v.close),volume:Number(v.volume)||null
+    })).filter(c=>Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low)&&Number.isFinite(c.close)&&c.close>0&&c.open>0&&c.high>=c.low);
+    candles.sort((a,b)=>(a.timeMs||0)-(b.timeMs||0));
+    if (candles.length < 40) throw new Error("Provider returned only "+candles.length+" valid candles; at least 40 are needed for stable indicator calculations.");
+    state.meta = data.meta || {symbol:pair,interval:$("interval").value};
+    return candles;
+  }
+  function ema(values, period) {
+    if (!values.length) return [];
+    const k = 2/(period+1), out = [values[0]];
+    for (let i=1;i<values.length;i++) out.push(values[i]*k + out[i-1]*(1-k));
+    return out;
+  }
+  function rsi(values, period = 14) {
+    if (values.length <= period) return 50;
+    let gains=0, losses=0;
+    for (let i=values.length-period;i<values.length;i++) {
+      const delta=values[i]-values[i-1];
+      if (delta>0) gains+=delta; else losses-=delta;
     }
+    if (losses===0) return gains===0?50:100;
+    return 100 - 100/(1+gains/losses);
+  }
+  function median(values) {
+    if (!values.length) return 0;
+    const v=values.slice().sort((a,b)=>a-b), m=Math.floor(v.length/2);
+    return v.length%2?v[m]:(v[m-1]+v[m])/2;
+  }
+  function evaluateSetup(candles) {
+    if (candles.length < 30) return {side:"NONE",score:0,reason:"Need at least 30 valid candles.",indicators:{}};
+    const closes=candles.map(x=>x.close), fast=ema(closes,9), slow=ema(closes,21);
+    const last=candles[candles.length-1], prev=candles[candles.length-2], close=last.close;
+    const r=rsi(closes,14), momentum=close-closes[closes.length-4];
+    const momUp=momentum>0, momDown=momentum<0;
+    const trendUp=fast[fast.length-1]>slow[slow.length-1] && close>fast[fast.length-1];
+    const trendDown=fast[fast.length-1]<slow[slow.length-1] && close<fast[fast.length-1];
+    const side=(trendUp&&momUp)?"CALL":(trendDown&&momDown)?"PUT":"NONE";
+    const prior=candles.slice(-7,-1);
+    const priorHigh=Math.max(...prior.map(x=>x.high)), priorLow=Math.min(...prior.map(x=>x.low));
+    const breakoutUp=close>priorHigh, breakoutDown=close<priorLow;
+    const range=Math.max(0,last.high-last.low), body=Math.abs(last.close-last.open);
+    const directionalBody=range>0 ? body/range : 0;
+    const bodyMatches=(side==="CALL"&&last.close>last.open)||(side==="PUT"&&last.close<last.open);
+    const ranges=candles.slice(-16,-1).map(x=>Math.max(0,x.high-x.low)).filter(x=>x>0);
+    const baseline=median(ranges);
+    const volRatio=baseline>0?range/baseline:1;
+    const volatilityOK=volRatio>=0.45&&volRatio<=2.8;
+    let score=0; const reasons=[];
+    if(side!=="NONE"){score+=25;reasons.push("EMA 9 / EMA 21 trend and short momentum align");}
+    if(side==="CALL"&&r>=52&&r<=76){score+=15;reasons.push("RSI supports upward pressure without extreme extension");}
+    if(side==="PUT"&&r<=48&&r>=24){score+=15;reasons.push("RSI supports downward pressure without extreme extension");}
+    if(side==="CALL"&&breakoutUp){score+=20;reasons.push("close broke above the recent candle range");}
+    if(side==="PUT"&&breakoutDown){score+=20;reasons.push("close broke below the recent candle range");}
+    if(bodyMatches&&directionalBody>=0.5){score+=10;reasons.push("latest candle body supports the direction");}
+    if(volatilityOK){score+=10;reasons.push("recent candle range is within the engine's volatility band");}
+    const momentumMagnitude = Math.abs(momentum)/(Math.max(baseline,close*0.000001));
+    if(momentumMagnitude>=0.25){score+=10;reasons.push("three-bar momentum is meaningful relative to recent range");}
+    score=Math.min(100,score);
+    const minimum=Number($("minScore").value)||60;
+    let resultSide=side;
+    if(side==="NONE"||score<minimum) resultSide="NONE";
+    let reason;
+    if(resultSide==="NONE") {
+      reason = side==="NONE" ? "No directional agreement yet. Wait for trend and momentum to align." : "Setup score is below your "+minimum+"/100 threshold. No entry alert.";
+      if(reasons.length) reason += " Checks: "+reasons.join("; ")+".";
+    } else {
+      reason=reasons.join("; ")+". This is a rule-based setup score, not a win probability.";
+    }
+    return {side:resultSide,rawSide:side,score,reason,indicators:{
+      fast:fast[fast.length-1],slow:slow[slow.length-1],rsi:r,
+      trend:trendUp?"UP":trendDown?"DOWN":"MIXED",
+      breakout:breakoutUp?"UP BREAK":breakoutDown?"DOWN BREAK":"NONE",
+      momentum:momUp?"UP":momDown?"DOWN":"FLAT",
+      volatility:volatilityOK?"NORMAL":"OUTSIDE BAND",volRatio,
+      integrity:"CHECKED",close,latestTime:last.time,timeMs:last.timeMs
+    }};
+  }
+  function drawChart(candles) {
+    const canvas=$("priceChart"), rect=canvas.getBoundingClientRect(), cssWidth=Math.max(300,rect.width||700), cssHeight=230;
+    const dpr=Math.max(1,window.devicePixelRatio||1);
+    canvas.width=Math.round(cssWidth*dpr); canvas.height=Math.round(cssHeight*dpr);
+    const ctx=canvas.getContext("2d"); if(!ctx)return;
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,cssWidth,cssHeight);
+    ctx.fillStyle="#0a1221";ctx.fillRect(0,0,cssWidth,cssHeight);
+    if(!candles.length){ctx.fillStyle="#9eafca";ctx.font="12px system-ui";ctx.fillText("Analyze to load candles",15,28);return;}
+    const shown=candles.slice(-65), closes=shown.map(x=>x.close), fast=ema(closes,9), slow=ema(closes,21);
+    const hi=Math.max(...shown.map(x=>x.high)), lo=Math.min(...shown.map(x=>x.low)), pad=(hi-lo)*0.13||Math.abs(hi)*0.0001;
+    const top=12,bottom=cssHeight-20,left=10,right=cssWidth-10, plotH=bottom-top, plotW=right-left;
+    const y=v=>bottom-((v-(lo-pad))/((hi+pad)-(lo-pad)))*plotH;
+    ctx.strokeStyle="#26364e";ctx.lineWidth=1;
+    for(let i=0;i<5;i++){const yy=top+i*plotH/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();}
+    const slot=plotW/shown.length, candleW=Math.max(2,slot*0.58);
+    shown.forEach((c,i)=>{
+      const x=left+i*slot+slot/2, up=c.close>=c.open, col=up?"#42d6ad":"#ff8585";
+      ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y(c.high));ctx.lineTo(x,y(c.low));ctx.stroke();
+      ctx.fillStyle=col;const topY=Math.min(y(c.open),y(c.close)), h=Math.max(1,Math.abs(y(c.open)-y(c.close)));
+      ctx.fillRect(x-candleW/2,topY,candleW,h);
+    });
+    const line=(values,color,width)=>{ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();values.forEach((v,i)=>{const x=left+i*slot+slot/2, yy=y(v);if(i===0)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);});ctx.stroke();};
+    line(fast,"#f5cf75",1.6);line(slow,"#6e9eff",1.6);
+    ctx.font="10px system-ui";ctx.fillStyle="#9eafca";ctx.fillText(hi.toFixed(hi<10?5:2),left,10);ctx.fillText(lo.toFixed(lo<10?5:2),left,cssHeight-3);
+  }
+  function updateMetrics(candles, result) {
+    const last=candles[candles.length-1];
+    const isGold=$("asset").value.includes("Gold"), isJPY=$("asset").value.includes("JPY");
+    $("metricPrice").textContent=last.close.toLocaleString(undefined,{minimumFractionDigits:isGold?2:isJPY?3:5,maximumFractionDigits:isGold?2:isJPY?3:5});
+    $("metricAsset").textContent=$("asset").value+" · "+$("interval").selectedOptions[0].text;
+    $("metricTrend").textContent=result.indicators.trend;
+    $("metricTrend").style.color=result.indicators.trend==="UP"?"#42d6ad":result.indicators.trend==="DOWN"?"#ff8585":"#f5cf75";
+    $("metricTrendNote").textContent="EMA 9 "+round(result.indicators.fast,isGold?2:5)+" / EMA 21 "+round(result.indicators.slow,isGold?2:5);
+    $("metricRsi").textContent=round(result.indicators.rsi,1);
+    $("metricRsiNote").textContent=result.indicators.rsi>70?"Elevated upward pressure":result.indicators.rsi<30?"Elevated downward pressure":"Within broad momentum range";
+    const age=last.timeMs?Math.max(0,Date.now()-last.timeMs):null;
+    $("metricAge").textContent=age===null?"Demo":formatAge(age);
+    $("metricAgeNote").textContent=last.timeMs?"Last candle timestamp age":"Demo candle clock";
+    $("indTrend").textContent=result.indicators.trend;
+    $("indTrendDetail").textContent="EMA 9 "+round(result.indicators.fast,isGold?2:5)+" · EMA 21 "+round(result.indicators.slow,isGold?2:5);
+    $("indRsi").textContent=round(result.indicators.rsi,1);
+    $("indRsiDetail").textContent=result.indicators.rsi>70?"Higher range":result.indicators.rsi<30?"Lower range":"Mid-range momentum";
+    $("indBreakout").textContent=result.indicators.breakout;
+    $("indBreakoutDetail").textContent=result.indicators.breakout==="NONE"?"Still inside recent range":"Compared with prior 6 bars";
+    $("indMomentum").textContent=result.indicators.momentum;
+    $("indMomentumDetail").textContent="Close vs close 3 bars earlier";
+    $("indVolatility").textContent=result.indicators.volatility;
+    $("indVolatilityDetail").textContent="Last range / median: "+round(result.indicators.volRatio,2)+"×";
+    $("indIntegrity").textContent=last.timeMs?"TIMESTAMPED":"DEMO DATA";
+    $("indIntegrityDetail").textContent=candles.length+" valid bars · chronological";
+    $("candleChip").textContent="Candles: "+candles.length;
+    $("chartTimestamp").textContent=last.time ? String(last.time) : "Timestamp unavailable";
+    drawChart(candles);
+  }
+  function formatAge(ms) {
+    const mins=Math.floor(ms/60000);
+    if(mins<1)return Math.floor(ms/1000)+"s";
+    if(mins<60)return mins+"m";
+    const hrs=Math.floor(mins/60);
+    return hrs+"h "+(mins%60)+"m";
+  }
+  function dailyEntries() {
+    const day=localDayKey();
+    return state.journal.filter(x=>localDayKey(new Date(x.time))===day);
+  }
+  function dailyPnl() { return dailyEntries().reduce((sum,x)=>sum+(Number(x.pnl)||0),0); }
+  function riskSnapshot() {
+    const balance=Math.max(1,Number($("demoBalanceInput").value)||1000);
+    const risk=balance*(Number($("riskPct").value)||0.5)/100;
+    const stop=balance*(Number($("dailyLimit").value)||2)/100;
+    const pnl=dailyPnl(), entries=dailyEntries().length, cap=Number($("maxSignals").value)||5;
+    const reason=entries>=cap?"Daily entry cap reached":pnl<=-stop?"Daily loss limit reached":pnl-risk < -stop?"Next risk budget could cross the daily loss limit":"Risk guard ready";
+    return {balance,risk,stop,pnl,entries,cap,blocked:reason!=="Risk guard ready",reason};
+  }
+  function updateRisk() {
+    const r=riskSnapshot();
+    $("riskSummary").textContent="Risk budget: "+fmtMoney(r.risk)+" · Daily loss limit: "+fmtMoney(r.stop)+" · Paper P/L: "+fmtMoney(r.pnl);
+    $("riskLockText").textContent=r.blocked?"RISK LOCK: "+r.reason+". New paper entries and automatic signal alerts are paused until the daily state resets or settings change.":"Risk guard ready · "+r.entries+"/"+r.cap+" daily entries used.";
+    $("riskLockText").style.color=r.blocked?"#ff8585":"#9eafca";
+  }
+  function latestFingerprint(signal,lastCandle) {
+    return [signal.mode,signal.market,signal.asset,signal.interval,signal.side,lastCandle.timeMs||lastCandle.time||"untimed"].join("|");
+  }
+  function signalMessage(signal) {
+    return "ScalpingBot Pocket Signals · "+signal.mode.toUpperCase()+"\n"+signal.asset+" · "+signal.market+"\n"+signal.side+" · expiry "+signal.expiryMinutes+"m\nSetup score: "+signal.score+"/100\n"+signal.reason+"\nFeed: "+signal.source+"\nRule-based setup score, not a probability. Verify price on platform.";
+  }
+  async function deliverAlert(signal,fingerprint) {
+    if(state.lastAlertFingerprint===fingerprint) return;
+    state.lastAlertFingerprint=fingerprint;
     persist();
+    const msg=signalMessage(signal);
+    if("Notification" in window) {
+      try {
+        if(Notification.permission==="default") await Notification.requestPermission();
+        if(Notification.permission==="granted") new Notification("Pocket Signals · "+signal.side,{body:signal.asset+" · "+signal.score+"/100 · "+signal.mode.toUpperCase()});
+      } catch(e) {}
+    }
+    const url=$("telegramWebhook").value.trim();
+    if(url) {
+      try {
+        const parsed=new URL(url);
+        if(parsed.protocol!=="https:") throw new Error("Only HTTPS relay endpoints are allowed.");
+        const response=await fetch(parsed.href,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          text:msg,signal:{mode:signal.mode,asset:signal.asset,market:signal.market,side:signal.side,
+          expiryMinutes:signal.expiryMinutes,score:signal.score,source:signal.source,createdAt:signal.createdAt,fingerprint}
+        }),mode:"cors"});
+        if(!response.ok) throw new Error("Relay returned HTTP "+response.status);
+        $("alertStatus").textContent="Alert delivered to your relay endpoint.";
+        $("alertStatus").className="signal-status good";
+      } catch(e) {
+        $("alertStatus").textContent="Browser signal is ready; relay failed: "+e.message;
+        $("alertStatus").className="signal-status warn";
+      }
+    } else {
+      $("alertStatus").textContent="New "+signal.side+" setup alert available. Browser notification permission: "+(("Notification" in window)?Notification.permission:"unsupported")+".";
+      $("alertStatus").className="signal-status good";
+    }
+  }
+  function paintSignal(signal) {
+    state.signal=signal;
+    $("signalSide").textContent=signal.side==="NONE"?"NO SIGNAL":signal.side;
+    $("signalSide").className="signal-side "+(signal.side==="CALL"?"call":signal.side==="PUT"?"put":"neutral");
+    $("signalAsset").textContent=signal.asset+" · "+signal.market+" · "+signal.interval+" candles";
+    $("scoreValue").textContent=signal.score+" / 100";
+    $("scoreMeter").style.width=signal.score+"%";
+    $("scoreLabel").textContent=signal.score>=80?"Strong rule alignment":signal.score>=Number($("minScore").value)?"Setup threshold met":"Below entry threshold";
+    $("signalReason").textContent=signal.reason;
+    $("signalReason").className="signal-status "+(signal.side!=="NONE"?"good":"warn");
+    $("modeChip").textContent="Mode: "+signal.mode.toUpperCase();
+    $("expiryChip").textContent="Expiry: "+signal.expiryMinutes+"m";
+    $("alertChip").textContent=signal.side==="NONE"?"Alerts: waiting for setup":"Alerts: "+(riskSnapshot().blocked?"risk locked":"new setup eligible");
+    $("logPaper").disabled=signal.side==="NONE"||riskSnapshot().blocked;
+    $("copySignal").disabled=signal.side==="NONE";
+  }
+  async function analyze(options = {}) {
+    if(state.busy)return;
+    state.busy=true; $("analyzeBtn").disabled=true;
+    setFeedStatus(isLive()?"Requesting live candles from Twelve Data…":"Preparing Demo candles…","warn");
+    try {
+      const live=isLive();
+      if(live) {
+        state.candles=await fetchLiveCandles();
+        state.feedMode="live";
+      } else {
+        state.candles=generateDemoCandles(150);
+        state.feedMode="demo";
+        state.meta={symbol:$("asset").value,interval:$("interval").value};
+      }
+      const last=state.candles[state.candles.length-1];
+      const intervalMs=timeframeMinutes()*60000;
+      const age=last.timeMs?Math.max(0,Date.now()-last.timeMs):0;
+      const stale=live&&last.timeMs&&age>Math.max(intervalMs*8,15*60000);
+      const result=evaluateSetup(state.candles);
+      updateMetrics(state.candles,result);
+      state.lastAnalysisAt=new Date();
+      const market=$("marketType").value==="otc"?"Pocket Option OTC (Demo)":"Forex";
+      setFeedStatus(live
+        ? "Live candles received from Twelve Data · "+state.candles.length+" bars · latest bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
+        : "Demo feed ready · "+state.candles.length+" candles · "+$("asset").value+" · generated locally for strategy testing.",
+        stale?"bad":"good");
+      if(stale) {
+        paintSignal({side:"NONE",score:0,reason:"The latest provider candle is stale. No signal is emitted until fresh data returns.",asset:$("asset").value,market,mode:live?"Live":"Demo",interval:$("interval").value,expiryMinutes:expiryMinutes(),source:"Twelve Data",createdAt:new Date().toISOString(),indicators:result.indicators});
+        $("indIntegrity").textContent="STALE";$("indIntegrityDetail").textContent="Signal suppressed";
+        state.lastFetchError="Provider candles stale";
+      } else {
+        const signal={side:result.side,score:result.score,reason:result.reason,asset:$("asset").value,market,
+          mode:live?"Live":"Demo",interval:$("interval").value,expiryMinutes:expiryMinutes(),
+          source:live?"Twelve Data":"Demo feed",createdAt:new Date().toISOString(),price:last.close,
+          candleTime:last.time,indicators:result.indicators};
+        paintSignal(signal);
+        state.lastFetchError="";
+        if(signal.side!=="NONE") {
+          const risk=riskSnapshot(), fp=latestFingerprint(signal,last);
+          if(risk.blocked) {
+            $("signalReason").textContent="Setup detected but risk guard blocks alerts and paper entries: "+risk.reason+". "+signal.reason;
+            $("signalReason").className="signal-status bad";
+            $("logPaper").disabled=true;
+          } else if(!options.silent) {
+            await deliverAlert(signal,fp);
+          } else if(state.lastAlertFingerprint!==fp) {
+            await deliverAlert(signal,fp);
+          }
+        }
+        $("runBacktest").disabled=state.candles.length<60;
+        $("backtestStatus").textContent="Ready to evaluate "+state.candles.length+" bars using a forward-only test. Choose Run candle test.";
+        $("backtestStatus").className="signal-status";
+        $("backtestStats").hidden=true;
+      }
+      $("metricAgeNote").textContent=live?"Provider timestamp age":"Demo feed clock";
+      persist();
+    } catch(error) {
+      state.lastFetchError=error.message||"Unknown feed error";
+      setFeedStatus("Feed error: "+state.lastFetchError,"bad");
+      $("signalSide").textContent="NO SIGNAL";
+      $("signalSide").className="signal-side neutral";
+      $("signalReason").textContent="No reliable signal generated because valid candle data was not available.";
+      $("signalReason").className="signal-status bad";
+      $("logPaper").disabled=true;$("copySignal").disabled=true;$("runBacktest").disabled=true;
+      $("indIntegrity").textContent="ERROR";$("indIntegrityDetail").textContent="Feed validation failed";
+    } finally {
+      state.busy=false;$("analyzeBtn").disabled=false;
+    }
+  }
+  function runHistoricalTest() {
+    const candles=state.candles;
+    if(candles.length<60){$("backtestStatus").textContent="At least 60 candles are required.";return;}
+    const tf=timeframeMinutes(), horizon=Math.max(1,Math.ceil(expiryMinutes()/tf));
+    const first=Math.max(35,candles.length-121), lastIndex=candles.length-horizon;
+    let trades=0,wins=0,losses=0,ties=0,totalScore=0;
+    for(let i=first;i<lastIndex;i++) {
+      const prefix=candles.slice(0,i+1), result=evaluateSetup(prefix);
+      if(result.side==="NONE")continue;
+      const future=candles[i+horizon];
+      if(!future)continue;
+      const start=candles[i].close, end=future.close;
+      if(Math.abs(end-start)<Math.max(1e-12,Math.abs(start)*1e-8)){ties++;continue;}
+      trades++;totalScore+=result.score;
+      const won=(result.side==="CALL"&&end>start)||(result.side==="PUT"&&end<start);
+      if(won)wins++;else losses++;
+    }
+    $("backtestStats").hidden=false;
+    $("btTrades").textContent=trades;
+    $("btWins").textContent=wins+" / "+losses;
+    $("btRate").textContent=trades?round(wins/trades*100,1)+"%":"—";
+    $("btScore").textContent=trades?round(totalScore/trades,1):"—";
+    $("btHorizon").textContent=horizon+" bar"+(horizon===1?"":"s")+" · "+expiryMinutes()+"m";
+    let msg=trades
+      ? "Walk-forward candle comparison complete: "+trades+" signals, "+wins+" moved in the predicted direction, "+losses+" did not, "+ties+" ties excluded."
+      : "No qualifying setups were found in the tested sample. Try a lower score threshold or fetch more candles.";
+    if(trades<20)msg+=" Sample is small; do not draw a performance conclusion.";
+    $("backtestStatus").textContent=msg;
+    $("backtestStatus").className="signal-status "+(trades>=20?"good":"warn");
+  }
+  function journalPnlFor(item,result) {
+    if(result==="win")return Number(item.riskAmount||0)*Number(item.payoutPct||80)/100;
+    if(result==="loss")return -Number(item.riskAmount||0);
+    return 0;
   }
   function renderJournal() {
     const rows=$("journalRows");
-    if(!state.journal.length) rows.innerHTML='<tr><td colspan="5">No demo entries yet.</td></tr>';
-    else rows.innerHTML=state.journal.slice().reverse().map(x=>'<tr><td>'+new Date(x.time).toLocaleTimeString()+'</td><td>'+escapeHtml(x.asset)+'<br><small>'+escapeHtml(x.market)+'</small></td><td>'+escapeHtml(x.side)+'</td><td>'+escapeHtml(x.source)+'</td><td><select data-result="'+x.id+'" aria-label="Demo result"><option value="pending" '+(x.result==="pending"?"selected":"")+'>Pending</option><option value="win" '+(x.result==="win"?"selected":"")+'>Win</option><option value="loss" '+(x.result==="loss"?"selected":"")+'>Loss</option><option value="skip" '+(x.result==="skip"?"selected":"")+'>Skipped</option></select></td></tr>').join("");
-    rows.querySelectorAll("select[data-result]").forEach(el=>el.addEventListener("change",()=>{const item=state.journal.find(x=>x.id===el.dataset.result);if(item)item.result=el.value;persist();renderJournalStats();updateRisk();}));
-    renderJournalStats();
+    if(!state.journal.length) rows.innerHTML='<tr><td colspan="8">No journal entries yet.</td></tr>';
+    else rows.innerHTML=state.journal.slice().reverse().map(x=>{
+      const results=["pending","win","loss","skip"];
+      const options=results.map(r=>'<option value="'+r+'" '+(x.result===r?"selected":"")+'>'+({pending:"Pending",win:"Win",loss:"Loss",skip:"Skipped"}[r])+'</option>').join("");
+      return '<tr><td>'+escapeHtml(new Date(x.time).toLocaleString())+'</td><td>'+escapeHtml(x.mode||"Demo")+' · '+escapeHtml(x.market||"Forex")+'</td><td>'+escapeHtml(x.asset)+'</td><td>'+escapeHtml(x.side)+'</td><td>'+escapeHtml(x.score)+'/100</td><td>'+escapeHtml(fmtMoney(x.riskAmount||0))+'</td><td><select data-result="'+escapeHtml(x.id)+'" aria-label="Mark paper result">'+options+'</select></td><td>'+escapeHtml(fmtMoney(Number(x.pnl)||0))+'</td></tr>';
+    }).join("");
+    rows.querySelectorAll("select[data-result]").forEach(el=>el.addEventListener("change",()=>{
+      const item=state.journal.find(x=>x.id===el.dataset.result);
+      if(!item)return;
+      item.result=el.value;item.pnl=journalPnlFor(item,el.value);item.updatedAt=new Date().toISOString();
+      renderJournal();updateRisk();persist();
+      if(state.signal)paintSignal(state.signal);
+    }));
+    const done=state.journal.filter(x=>x.result==="win"||x.result==="loss");
+    const wins=done.filter(x=>x.result==="win").length,losses=done.length-wins;
+    const pnl=state.journal.reduce((sum,x)=>sum+(Number(x.pnl)||0),0);
+    $("journalCount").textContent=state.journal.length;
+    $("winCount").textContent=wins;$("lossCount").textContent=losses;
+    $("winRate").textContent=done.length?round(wins/done.length*100,1)+"%":"—";
+    $("journalPnl").textContent=fmtMoney(pnl);$("journalPnl").style.color=pnl>0?"#42d6ad":pnl<0?"#ff8585":"#eef4ff";
   }
-  function renderJournalStats() {
-    const done=state.journal.filter(x=>x.result==="win"||x.result==="loss"), wins=done.filter(x=>x.result==="win").length, losses=done.length-wins;
-    $("journalCount").textContent=state.journal.length; $("winCount").textContent=wins; $("lossCount").textContent=losses; $("winRate").textContent=done.length?Math.round(wins/done.length*100)+"%":"—";
+  function logPaperEntry() {
+    const signal=state.signal;
+    if(!signal||signal.side==="NONE"){alert("Analyze a qualifying setup first.");return;}
+    const risk=riskSnapshot();
+    if(risk.blocked){alert("Risk guard active: "+risk.reason+". No new paper entry logged.");updateRisk();return;}
+    const item={
+      id:String(Date.now())+"-"+Math.random().toString(36).slice(2,7),time:new Date().toISOString(),
+      mode:signal.mode,market:signal.market,asset:signal.asset,side:signal.side,score:signal.score,
+      interval:signal.interval,expiryMinutes:signal.expiryMinutes,source:signal.source,price:signal.price,
+      riskAmount:risk.risk,payoutPct:Number($("payoutPct").value)||80,result:"pending",pnl:0
+    };
+    state.journal.push(item);renderJournal();updateRisk();persist();
+    $("alertStatus").textContent="Paper entry recorded. Mark Win, Loss or Skipped only after the selected horizon; these outcomes are manual.";
+    $("alertStatus").className="signal-status good";
+    if(state.signal)paintSignal(state.signal);
   }
-  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-  $("dataMode").addEventListener("change",()=>{$("manualBox").hidden=$("dataMode").value!=="manual";$("apiBox").hidden=$("dataMode").value!=="live";$("feedStatus").textContent=$("dataMode").value==="live"?"Live forex feed selected. Add a Twelve Data API key. OTC prices are not available from this forex feed.":$("dataMode").value==="manual"?"Manual prices selected; values are not independently verified.":"Synthetic demo candles only — not live market data.";});
-  $("marketType").addEventListener("change",()=>{if($("marketType").value==="otc"&&$("dataMode").value==="live")$("feedStatus").textContent="OTC selected: live forex feed is not applicable. Switch to simulation or manual candles.";});
-  $("saveMarketKey").addEventListener("click",()=>{persist();$("feedStatus").textContent=$("marketApiKey").value.trim()?"Feed key saved on this device. Try Analyze for signal.":"No API key entered yet.";});
-  $("analyzeBtn").addEventListener("click",analyze);
-  $("copySignal").addEventListener("click",async()=>{if(!state.signal){alert("Analyze first.");return;}const s=state.signal;const msg="Pocket Signal Lab (DEMO)\n"+s.asset+" / "+s.market+"\n"+s.side+" · 1 minute · setup score "+s.score+"/90\n"+s.reason+"\nSource: "+s.source+"\nNot a win probability. Verify market data.";try{await navigator.clipboard.writeText(msg);$("alertStatus").textContent="Signal copied. You can paste it into Telegram."; }catch(e){prompt("Copy this signal text:",msg);}});
-  $("markPaper").addEventListener("click",()=>{if(!state.signal){alert("Analyze a setup first.");return;}if(riskStatus().blocked){alert("Risk lock active: daily demo entry cap or estimated daily loss limit reached. Stop testing for today.");return;}const s=state.signal;state.journal.push({id:String(Date.now()),time:new Date().toISOString(),asset:s.asset,market:s.market,side:s.side,source:s.source,result:"pending"});state.dailyCount++;persist();renderJournal();updateRisk();$("alertStatus").textContent="Signal logged as a demo idea. Mark its outcome later; do not treat it as a placed trade.";});
-  $("saveAlertSettings").addEventListener("click",()=>{const url=$("telegramWebhook").value.trim();if(url){try{if(new URL(url).protocol!=="https:")throw 0;}catch(e){alert("Use a valid HTTPS relay URL. Never enter your Telegram bot token here.");return;}}persist();$("alertStatus").textContent=url?"Secure relay URL saved on this device. Test it with a server you control.":"In-app alerts enabled; Telegram relay not configured.";});
-  $("clearJournal").addEventListener("click",()=>{if(confirm("Clear demo journal and today's entry count?")){state.journal=[];state.dailyCount=0;state.dailyLoss=0;persist();renderJournal();updateRisk();}});
-  ["demoBalanceInput","riskPct","dailyLimit","maxSignals"].forEach(id=>$(id).addEventListener("input",updateRisk));
-  load();
+  function exportCsv() {
+    if(!state.journal.length){alert("The journal is empty.");return;}
+    const headers=["time","mode","market","asset","side","score","interval","expiryMinutes","source","price","riskAmount","payoutPct","result","pnl"];
+    const quote = v => '"'+String(v??"").replace(/"/g,'""')+'"';
+    const lines=[headers.join(",")].concat(state.journal.map(row=>headers.map(h=>quote(row[h])).join(",")));
+    const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url;a.download="scalpingbot-signal-journal-"+localDayKey()+".csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  }
+  function startAutoScan() {
+    if(state.autoTimer){clearInterval(state.autoTimer);state.autoTimer=null;$("autoBtn").textContent="Start auto-scan";$("autoBtn").className="btn outline";$("alertChip").textContent="Alerts: manual scan";setFeedStatus("Auto-scan paused. Analyze now remains available.","warn");return;}
+    if(isLive()&&!$("marketApiKey").value.trim()){alert("Enter and save the Twelve Data API key before starting Live auto-scan.");return;}
+    const interval=Math.max(60000,Number($("autoRate").value)||300000);
+    state.autoTimer=setInterval(()=>{if(!state.busy)analyze({silent:true});},interval);
+    $("autoBtn").textContent="Pause auto-scan";$("autoBtn").className="btn danger";
+    $("alertChip").textContent="Alerts: auto-scan active";
+    setFeedStatus("Auto-scan active every "+(interval/60000)+" minute(s). Live requests use provider quota; review the interval before leaving it running.","good");
+    if("Notification" in window&&Notification.permission==="default")Notification.requestPermission().catch(()=>{});
+  }
+  function testBrowserAlert() {
+    if(!("Notification" in window)){ $("alertStatus").textContent="Browser notifications are not supported here. Keep this page open to view in-page alerts.";return; }
+    Notification.requestPermission().then(permission=>{
+      if(permission==="granted"){new Notification("ScalpingBot Pocket Signals",{body:"Browser notification test successful."});$("alertStatus").textContent="Browser notification permission granted.";$("alertStatus").className="signal-status good";}
+      else{$("alertStatus").textContent="Notifications are blocked. Enable them in browser site settings.";$("alertStatus").className="signal-status warn";}
+    }).catch(()=>{$("alertStatus").textContent="Could not request notification permission in this browser context.";});
+  }
+  function copySignal() {
+    if(!state.signal||state.signal.side==="NONE")return;
+    const text=signalMessage(state.signal);
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>{$("alertStatus").textContent="Signal copied to clipboard.";$("alertStatus").className="signal-status good";}).catch(()=>window.prompt("Copy this signal text:",text));
+    } else window.prompt("Copy this signal text:",text);
+  }
+  $("modeSelect").addEventListener("change",()=>{
+    if(!isLive())setFeedStatus("Demo mode selected. Generated candles are used for testing; no live quote is implied.","warn");
+    syncControls();persist();
+  });
+  $("marketType").addEventListener("change",()=>{
+    if($("marketType").value==="otc"&&isLive())$("modeSelect").value="demo";
+    syncControls();
+    setFeedStatus($("marketType").value==="otc"?"OTC is available in Demo mode only. The Live forex feed does not supply Pocket Option OTC quotes.":"Forex selected. Choose Demo or Live market data.","warn");
+  });
+  ["asset","interval","expiry","minScore","riskPct","dailyLimit","maxSignals","payoutPct","autoRate","demoBalanceInput"].forEach(id=>{
+    $(id).addEventListener("change",()=>{syncControls();updateRisk();persist();});
+    $(id).addEventListener("input",()=>{updateRisk();persist();});
+  });
+  $("saveMarketKey").addEventListener("click",()=>{
+    if(!$("marketApiKey").value.trim()){alert("Enter your Twelve Data API key first.");return;}
+    persist();$("alertStatus").textContent="Twelve Data key saved in this browser only. Analyze now to test access.";$("alertStatus").className="signal-status good";
+    setFeedStatus("Key saved locally. Analyze now to validate provider access.","warn");
+  });
+  $("clearMarketKey").addEventListener("click",()=>{
+    $("marketApiKey").value="";persist();setFeedStatus("Saved provider key removed from this browser.","warn");
+    $("alertStatus").textContent="Provider key forgotten on this device.";
+  });
+  $("saveAlertSettings").addEventListener("click",()=>{
+    const value=$("telegramWebhook").value.trim();
+    if(value){try{if(new URL(value).protocol!=="https:")throw new Error();}catch(e){alert("Use a valid HTTPS server relay URL. Never enter a Telegram bot token here.");return;}}
+    persist();$("alertStatus").textContent=value?"HTTPS relay saved on this device. It will be called on new qualifying setups.":"No Telegram relay configured; browser alerts remain available.";
+    $("alertStatus").className="signal-status";
+  });
+  $("analyzeBtn").addEventListener("click",()=>analyze());
+  $("autoBtn").addEventListener("click",startAutoScan);
+  $("runBacktest").addEventListener("click",runHistoricalTest);
+  $("logPaper").addEventListener("click",logPaperEntry);
+  $("copySignal").addEventListener("click",copySignal);
+  $("testNotification").addEventListener("click",testBrowserAlert);
+  $("exportJournal").addEventListener("click",exportCsv);
+  $("clearJournal").addEventListener("click",()=>{
+    if(confirm("Clear every journal entry and its paper P/L on this device? This cannot be undone.")){
+      state.journal=[];renderJournal();updateRisk();persist();
+      $("alertStatus").textContent="Journal cleared on this device.";
+    }
+  });
+  window.addEventListener("resize",()=>{if(state.candles.length)drawChart(state.candles);});
+  window.addEventListener("beforeunload",()=>{if(state.autoTimer)clearInterval(state.autoTimer);});
+  loadSettings();
+  setFeedStatus(isLive()?"Live mode selected. Save your key and analyze to check feed access.":"Demo mode ready. Analyze to generate candles and evaluate the rule-based setup.","warn");
 })();
 </script>
 </body>
