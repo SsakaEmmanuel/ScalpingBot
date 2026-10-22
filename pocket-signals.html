@@ -242,7 +242,7 @@
   const state = {
     candles: [], signal: null, journal: [], meta: null, feedMode: "demo",
     feedTime: null, autoTimer: null, busy: false, lastAlertFingerprint: "",
-    lastAnalysisAt: null, lastFetchError: ""
+    lastAnalysisAt: null, lastFetchError: "", consecutiveErrors: 0
   };
   const fmtMoney = n => (n < 0 ? "-$" : "$") + Math.abs(Number(n) || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const round = (n,d=2) => Number(n).toFixed(d);
@@ -252,6 +252,43 @@
   const expiryMinutes = () => parseInt($("expiry").value,10) || 1;
   const escapeHtml = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+  function resetSignalView(message = "Analyze current settings before using a signal.") {
+    state.signal = null;
+    $("signalSide").textContent = "NO SIGNAL";
+    $("signalSide").className = "signal-side neutral";
+    $("signalAsset").textContent = "No current setup";
+    $("scoreValue").textContent = "— / 100";
+    $("scoreMeter").style.width = "0";
+    $("scoreLabel").textContent = message;
+    $("signalReason").textContent = message;
+    $("signalReason").className = "signal-status warn";
+    $("modeChip").textContent = "Mode: " + $("modeSelect").value.toUpperCase();
+    $("expiryChip").textContent = "Expiry: " + expiryMinutes() + "m";
+    $("candleChip").textContent = "Candles: —";
+    $("alertChip").textContent = "Alerts: waiting for analysis";
+    $("logPaper").disabled = true;
+    $("copySignal").disabled = true;
+  }
+  function resetMarketState(message = "Settings changed. Analyze again to load matching candle data.") {
+    state.candles = [];
+    resetSignalView(message);
+    drawChart([]);
+    $("metricPrice").textContent = "—";
+    $("metricAsset").textContent = "Waiting for candles";
+    $("metricTrend").textContent = "—";
+    $("metricTrendNote").textContent = "EMA 9 / EMA 21";
+    $("metricRsi").textContent = "—";
+    $("metricRsiNote").textContent = "Momentum filter";
+    $("metricAge").textContent = "—";
+    $("metricAgeNote").textContent = "Timestamp not available";
+    ["indTrend","indRsi","indBreakout","indMomentum","indVolatility","indIntegrity"].forEach(id=>$(id).textContent="—");
+    ["indTrendDetail","indRsiDetail","indBreakoutDetail","indMomentumDetail","indVolatilityDetail","indIntegrityDetail"].forEach(id=>$(id).textContent="Waiting for new data");
+    $("chartTimestamp").textContent = "No candle data";
+    $("runBacktest").disabled = true;
+    $("backtestStats").hidden = true;
+    $("backtestStatus").textContent = "Analyze a set of at least 60 candles to enable the historical test.";
+    $("backtestStatus").className = "signal-status";
+  }
   function loadSettings() {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem(LEGACY) || "{}"); } catch(e) { saved = {}; }
@@ -596,7 +633,7 @@
       const stale=live&&last.timeMs&&age>Math.max(intervalMs*8,15*60000);
       const result=evaluateSetup(state.candles);
       updateMetrics(state.candles,result);
-      state.lastAnalysisAt=new Date();
+      state.lastAnalysisAt=new Date(); state.consecutiveErrors=0;
       const market=$("marketType").value==="otc"?"Pocket Option OTC (Demo)":"Forex";
       setFeedStatus(live
         ? "Live candles received from Twelve Data · "+state.candles.length+" bars · latest bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
@@ -634,13 +671,18 @@
       persist();
     } catch(error) {
       state.lastFetchError=error.message||"Unknown feed error";
+      state.consecutiveErrors++;
+      resetMarketState("No reliable signal generated because valid candle data was not available.");
       setFeedStatus("Feed error: "+state.lastFetchError,"bad");
-      $("signalSide").textContent="NO SIGNAL";
-      $("signalSide").className="signal-side neutral";
       $("signalReason").textContent="No reliable signal generated because valid candle data was not available.";
       $("signalReason").className="signal-status bad";
-      $("logPaper").disabled=true;$("copySignal").disabled=true;$("runBacktest").disabled=true;
       $("indIntegrity").textContent="ERROR";$("indIntegrityDetail").textContent="Feed validation failed";
+      if(state.autoTimer&&state.consecutiveErrors>=3){
+        clearInterval(state.autoTimer);state.autoTimer=null;
+        $("autoBtn").textContent="Start auto-scan";$("autoBtn").className="btn outline";
+        $("alertChip").textContent="Alerts: auto-scan paused";
+        setFeedStatus("Auto-scan paused after 3 consecutive feed errors to avoid repeated failed requests. Correct the feed, then restart.","bad");
+      }
     } finally {
       state.busy=false;$("analyzeBtn").disabled=false;
     }
@@ -753,16 +795,24 @@
     } else window.prompt("Copy this signal text:",text);
   }
   $("modeSelect").addEventListener("change",()=>{
-    if(!isLive())setFeedStatus("Demo mode selected. Generated candles are used for testing; no live quote is implied.","warn");
-    syncControls();persist();
+    if(state.autoTimer){clearInterval(state.autoTimer);state.autoTimer=null;$("autoBtn").textContent="Start auto-scan";$("autoBtn").className="btn outline";}
+    resetMarketState("Mode changed. Analyze the selected mode before reading a signal.");
+    syncControls();
+    setFeedStatus(isLive()?"Live mode selected. Save your key and analyze to check feed access.":"Demo mode selected. Demo candles are used for research; no live quote is implied.","warn");
+    persist();
   });
   $("marketType").addEventListener("change",()=>{
     if($("marketType").value==="otc"&&isLive())$("modeSelect").value="demo";
+    resetMarketState("Market changed. Analyze again to load matching candles.");
     syncControls();
     setFeedStatus($("marketType").value==="otc"?"OTC is available in Demo mode only. The Live forex feed does not supply Pocket Option OTC quotes.":"Forex selected. Choose Demo or Live market data.","warn");
   });
   ["asset","interval","expiry","minScore","riskPct","dailyLimit","maxSignals","payoutPct","autoRate","demoBalanceInput"].forEach(id=>{
-    $(id).addEventListener("change",()=>{syncControls();updateRisk();persist();});
+    $(id).addEventListener("change",()=>{
+      if(["asset","interval","expiry","minScore"].includes(id))resetMarketState("Settings changed. Analyze again before using a signal.");
+      syncControls();updateRisk();persist();
+      if(id==="autoRate"&&state.autoTimer){clearInterval(state.autoTimer);state.autoTimer=null;startAutoScan();}
+    });
     $(id).addEventListener("input",()=>{updateRisk();persist();});
   });
   $("saveMarketKey").addEventListener("click",()=>{
