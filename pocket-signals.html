@@ -351,7 +351,7 @@
   function generateDemoCandles(count = 150) {
     const base = assetBase(), isJPY = $("asset").value.includes("JPY"), gold = $("asset").value.includes("Gold");
     const unit = gold ? 1.5 : isJPY ? 0.035 : base * 0.00022;
-    const now = Date.now(), step = timeframeMinutes() * 60000, candles = [];
+    const step = timeframeMinutes() * 60000, now = Math.floor(Date.now() / step) * step - step, candles = [];
     let price = base, drift = 0;
     for (let i = count-1; i >= 0; i--) {
       const t = now - i*step;
@@ -405,9 +405,11 @@
       high:Number(v.high),low:Number(v.low),close:Number(v.close),volume:Number(v.volume)||null
     })).filter(c=>Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low)&&Number.isFinite(c.close)&&c.close>0&&c.open>0&&c.high>=c.low);
     candles.sort((a,b)=>(a.timeMs||0)-(b.timeMs||0));
-    if (candles.length < 40) throw new Error("Provider returned only "+candles.length+" valid candles; at least 40 are needed for stable indicator calculations.");
+    const intervalMs = timeframeMinutes() * 60000;
+    const completed = candles.filter(c=>!c.timeMs || c.timeMs + intervalMs <= Date.now() - 500);
+    if (completed.length < 40) throw new Error("Provider returned only "+completed.length+" completed valid candles; at least 40 are needed for stable indicator calculations.");
     state.meta = data.meta || {symbol:pair,interval:$("interval").value};
-    return candles;
+    return completed;
   }
   function ema(values, period) {
     if (!values.length) return [];
@@ -638,7 +640,7 @@
       state.lastAnalysisAt=new Date(); state.consecutiveErrors=0;
       const market=$("marketType").value==="otc"?"Pocket Option OTC (Demo)":"Forex";
       setFeedStatus(live
-        ? "Live candles received from Twelve Data · "+state.candles.length+" bars · latest bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
+        ? "Completed Live candles received from Twelve Data · "+state.candles.length+" bars · latest completed bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
         : "Demo feed ready · "+state.candles.length+" candles · "+$("asset").value+" · generated locally for strategy testing.",
         stale?"bad":"good");
       if(stale) {
