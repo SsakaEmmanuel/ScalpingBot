@@ -13,9 +13,15 @@ const references = [...scriptMatch[1].matchAll(/\$\("([^"]+)"\)/g)].map(match =>
 const missing = [...new Set(references.filter(id => !ids.has(id)))];
 assert.deepEqual(missing, [], "Every JavaScript element reference must exist in the HTML");
 
-for (const id of ["modeSelect", "marketType", "asset", "interval", "expiry", "marketApiKey", "priceChart", "runBacktest", "riskSummary", "journalRows", "exportJournal", "autoBtn"]) {
+for (const id of ["modeSelect", "marketType", "asset", "assetSuggestions", "interval", "expiry", "marketApiKey", "priceChart", "runBacktest", "riskSummary", "journalRows", "exportJournal", "autoBtn"]) {
   assert.ok(ids.has(id), "Missing required UI element: " + id);
 }
+assert.match(html, /<input id="asset"[^>]*list="assetSuggestions"/, "Assets must accept custom market pairs");
+assert.match(scriptMatch[1], /function normalizeAsset\(value\)/, "Custom market pairs must be normalized");
+assert.match(scriptMatch[1], /sessionStorage\.setItem\("pocketSignalLiveKey"/, "The live key must be stored for the current session only");
+assert.doesNotMatch(scriptMatch[1], /marketApiKey:\$\("marketApiKey"\)\.value\.trim\(\)/, "The live key must not be persisted with journal settings");
+const visibleUi = html.slice(0, html.indexOf("<script>"));
+assert.doesNotMatch(visibleUi, /Twelve Data/i, "The page UI should not expose the feed provider name");
 assert.match(html, /option value="demo">Demo<\/option>/, "Demo mode must be available");
 assert.match(html, /option value="live">Live market data<\/option>/, "Live mode must be available");
 assert.match(html, /api\.twelvedata\.com\/time_series/, "Live time-series integration must exist");
