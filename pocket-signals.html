@@ -113,8 +113,11 @@
 <select id="modeSelect"><option value="demo">Demo</option><option value="live">Live market data</option></select>
 <label for="marketType">Market type</label>
 <select id="marketType"><option value="forex">Forex</option><option value="otc">Pocket Option OTC — Demo only</option></select>
-<label for="asset">Asset</label>
-<select id="asset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>EUR/JPY</option><option>Gold (XAU/USD)</option></select>
+<label for="asset">Asset / pair</label>
+<input id="asset" type="text" list="assetSuggestions" value="EUR/USD" maxlength="15" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. EUR/USD or AUD/JPY">
+<datalist id="assetSuggestions">
+<option value="EUR/USD"><option value="GBP/USD"><option value="USD/JPY"><option value="AUD/USD"><option value="EUR/JPY"><option value="XAU/USD"><option value="GBP/JPY"><option value="EUR/GBP"><option value="USD/CAD"><option value="NZD/USD">
+</datalist>
 <div class="signal-two">
 <div><label for="interval">Candle timeframe</label><select id="interval"><option value="1min">1 minute</option><option value="5min">5 minutes</option><option value="15min">15 minutes</option></select></div>
 <div><label for="expiry">Expiry horizon</label><select id="expiry"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option></select></div>
@@ -124,7 +127,7 @@
 <label for="marketApiKey">Live data access key</label>
 <input id="marketApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter access key">
 <div class="signal-btnrow"><button class="btn outline" id="saveMarketKey" type="button">Save key</button><button class="btn outline" id="clearMarketKey" type="button">Forget key</button></div>
-<p class="signal-note">Saved only in this browser on this device. A browser-side key is not secret from someone who can inspect the device or browser. Do not use this page on a shared device with a paid key.</p>
+<p class="signal-note">Kept only for this browser session.</p>
 </div>
 <div class="signal-two">
 <div><label for="autoRate">Auto-scan interval</label><select id="autoRate"><option value="60000">Every 1 minute</option><option value="300000" selected>Every 5 minutes</option></select></div>
@@ -233,7 +236,7 @@
 </div>
 <div class="signal-table-wrap"><table class="signal-table"><thead><tr><th>Time</th><th>Mode / Market</th><th>Asset</th><th>Signal</th><th>Score</th><th>Risk budget</th><th>Result</th><th>Paper P/L</th></tr></thead><tbody id="journalRows"><tr><td colspan="8">No journal entries yet.</td></tr></tbody></table></div>
 </section>
-<footer class="signal-footer">ScalpingBot is a signal research tool. Live mode reads third-party market data and can send notifications, but it does not log in to Pocket Option or place trades. Setup scores are not calibrated probabilities. Twelve Data reference: <a class="signal-link" href="https://twelvedata.com/docs" target="_blank" rel="noopener noreferrer">API documentation</a>. Never expose provider or Telegram secrets in public code.</footer>
+<footer class="signal-footer">ScalpingBot is a signal research tool. Live mode reads market data and can send alerts, but it does not place trades. Setup scores are not win probabilities. Market data can differ from your trading platform.</footer>
 </main>
 <script>
 (() => {
@@ -242,9 +245,8 @@
   const STORE = "pocketSignalLab-v2";
   const LEGACY = "pocketSignalLab-v1";
   const state = {
-    candles: [], signal: null, journal: [], meta: null, feedMode: "demo",
-    feedTime: null, autoTimer: null, busy: false, lastAlertFingerprint: "",
-    lastAnalysisAt: null, lastFetchError: "", consecutiveErrors: 0
+    candles: [], signal: null, journal: [],
+    autoTimer: null, busy: false, lastAlertFingerprint: "", consecutiveErrors: 0
   };
   const fmtMoney = n => (n < 0 ? "-$" : "$") + Math.abs(Number(n) || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const round = (n,d=2) => Number(n).toFixed(d);
@@ -253,7 +255,19 @@
   const timeframeMinutes = () => parseInt($("interval").value,10) || 1;
   const expiryMinutes = () => parseInt($("expiry").value,10) || 1;
   const escapeHtml = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+  function normalizeAsset(value) {
+    let raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (/^GOLD\(?XAU\/USD\)?$/.test(raw)) return "XAU/USD";
+    raw = raw.replace(/-/g, "/");
+    const parts = raw.split("/").filter(Boolean);
+    if (parts.length === 1 && /^[A-Z]{6}$/.test(parts[0])) {
+      return parts[0].slice(0, 3) + "/" + parts[0].slice(3);
+    }
+    if (parts.length === 2 && parts.every(part => /^[A-Z]{3}$/.test(part))) {
+      return parts.join("/");
+    }
+    return "";
+  }
   function resetSignalView(message = "Analyze current settings before using a signal.") {
     state.signal = null;
     $("signalSide").textContent = "NO SIGNAL";
@@ -295,7 +309,9 @@
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem(LEGACY) || "{}"); } catch(e) { saved = {}; }
     if (saved.mode === "live" || saved.mode === "demo") $("modeSelect").value = saved.mode;
-    if (saved.asset && Array.from($("asset").options).some(x=>x.value===saved.asset || x.text===saved.asset)) $("asset").value = saved.asset;
+    const savedAsset = normalizeAsset(saved.asset);
+    if (savedAsset) $("asset").value = savedAsset;
+    try { $("marketApiKey").value = sessionStorage.getItem("pocketSignalLiveKey") || ""; } catch(e) { $("marketApiKey").value = ""; }
     if (saved.marketType === "forex" || saved.marketType === "otc") $("marketType").value = saved.marketType;
     if (["1min","5min","15min"].includes(saved.interval)) $("interval").value = saved.interval;
     if (["1","5","15"].includes(String(saved.expiry))) $("expiry").value = String(saved.expiry);
@@ -323,7 +339,7 @@
         riskPct:$("riskPct").value,dailyLimit:$("dailyLimit").value,maxSignals:$("maxSignals").value,
         payoutPct:$("payoutPct").value,autoRate:$("autoRate").value,demoBalance:$("demoBalanceInput").value,
         journal:state.journal,webhook:$("telegramWebhook").value.trim(),
-        marketApiKey:$("marketApiKey").value.trim(),lastAlertFingerprint:state.lastAlertFingerprint
+        lastAlertFingerprint:state.lastAlertFingerprint
       }));
     } catch(e) { setFeedStatus("Browser storage is unavailable. Settings may not persist after this page closes.","warn"); }
   }
@@ -335,7 +351,6 @@
     $("modeChip").textContent = "Mode: " + (live ? "Live data" : "Demo");
     $("marketType").disabled = live;
     if (live) $("marketType").value = "forex";
-    $("asset").options[5].text = "Gold (XAU/USD)";
     $("expiryChip").textContent = "Expiry: " + expiryMinutes() + " minute" + (expiryMinutes()===1?"":"s");
     $("chartTitle").textContent = $("asset").value + " · " + $("interval").selectedOptions[0].text + " candles + EMA overlays";
     $("modeBadge").title = live ? "Live third-party market data and alerting only; no broker orders." : "Demo data only; no broker orders.";
@@ -349,10 +364,13 @@
     $("connectionBadge").textContent = kind === "good" ? "● FEED READY" : kind === "bad" ? "● FEED ERROR" : "● FEED CHECK";
   }
   function assetBase() {
-    return {"EUR/USD":1.082,"GBP/USD":1.276,"USD/JPY":149.8,"AUD/USD":0.662,"EUR/JPY":162.3,"Gold (XAU/USD)":2380}[$("asset").value] || 1.082;
+    const symbol = normalizeAsset($("asset").value);
+    const known = {"EUR/USD":1.082,"GBP/USD":1.276,"USD/JPY":149.8,"AUD/USD":0.662,"EUR/JPY":162.3,"XAU/USD":2380};
+    return known[symbol] || (symbol.endsWith("/JPY") ? 150 : symbol.startsWith("XAU/") ? 2380 : 1);
   }
   function generateDemoCandles(count = 150) {
-    const base = assetBase(), isJPY = $("asset").value.includes("JPY"), gold = $("asset").value.includes("Gold");
+    const symbol = normalizeAsset($("asset").value);
+    const base = assetBase(), isJPY = symbol.endsWith("/JPY"), gold = symbol.startsWith("XAU/");
     const unit = gold ? 1.5 : isJPY ? 0.035 : base * 0.00022;
     const step = timeframeMinutes() * 60000, now = Math.floor(Date.now() / step) * step - step, candles = [];
     let price = base, drift = 0;
@@ -381,10 +399,10 @@
   }
   async function fetchLiveCandles() {
     const key = $("marketApiKey").value.trim();
-    if (!key) throw new Error("Enter your Twelve Data API key, then select Save key.");
-    if ($("marketType").value === "otc") throw new Error("Pocket Option OTC prices are not available from this forex provider. Switch to Demo for OTC.");
-    const pairMap = {"EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","AUD/USD":"AUD/USD","EUR/JPY":"EUR/JPY","Gold (XAU/USD)":"XAU/USD"};
-    const pair = pairMap[$("asset").value] || "EUR/USD";
+    if (!key) throw new Error("Enter your Live data key, then select Save key.");
+    if ($("marketType").value === "otc") throw new Error("OTC quotes are not available from the Live forex feed. Switch to Demo for OTC.");
+    const pair = normalizeAsset($("asset").value);
+    if (!pair) throw new Error("Enter a valid asset pair, such as EUR/USD.");
     const params = new URLSearchParams({symbol:pair,interval:$("interval").value,outputsize:"150",timezone:"UTC",order:"desc",apikey:key});
     const controller = new AbortController();
     const timeout = setTimeout(()=>controller.abort(),12000);
@@ -392,8 +410,8 @@
     try {
       response = await fetch("https://api.twelvedata.com/time_series?"+params.toString(),{signal:controller.signal,cache:"no-store"});
       if (!response.ok) {
-        if(response.status===429)throw new Error("Twelve Data request quota reached. Wait for the quota window or reduce auto-scan frequency.");
-        if(response.status===401||response.status===403)throw new Error("Twelve Data denied access. Check your API key and provider plan.");
+        if(response.status===429)throw new Error("Live data service request quota reached. Wait for the quota window or reduce auto-scan frequency.");
+        if(response.status===401||response.status===403)throw new Error("Live data service denied access. Check your API key and provider plan.");
         throw new Error("Market provider returned HTTP "+response.status+".");
       }
       data = await response.json();
@@ -403,8 +421,8 @@
     } finally { clearTimeout(timeout); }
     if (data.status === "error" || !Array.isArray(data.values)) {
       const message = data.message || "No candle data returned.";
-      if (/api.?key|unauthorized|permission|invalid.*key/i.test(message)) throw new Error("Twelve Data rejected the key or access. Check the key and the provider plan.");
-      if (/limit|credit|429|too many/i.test(message)) throw new Error("Twelve Data request quota reached. Wait for the quota window or reduce auto-scan frequency.");
+      if (/api.?key|unauthorized|permission|invalid.*key/i.test(message)) throw new Error("Live data service rejected the key or access. Check the key and the provider plan.");
+      if (/limit|credit|429|too many/i.test(message)) throw new Error("Live data service request quota reached. Wait for the quota window or reduce auto-scan frequency.");
       throw new Error(message);
     }
     const candles = data.values.map(v => ({
@@ -415,7 +433,6 @@
     const intervalMs = timeframeMinutes() * 60000;
     const completed = candles.filter(c=>!c.timeMs || c.timeMs + intervalMs <= Date.now() - 500);
     if (completed.length < 40) throw new Error("Provider returned only "+completed.length+" completed valid candles; at least 40 are needed for stable indicator calculations.");
-    state.meta = data.meta || {symbol:pair,interval:$("interval").value};
     return completed;
   }
   function ema(values, period) {
@@ -626,6 +643,9 @@
   }
   async function analyze(options = {}) {
     if(state.busy)return;
+    const normalizedAsset = normalizeAsset($("asset").value);
+    if (!normalizedAsset) { setFeedStatus("Enter a valid asset pair, such as EUR/USD.", "bad"); return; }
+    $("asset").value = normalizedAsset;
     const context={mode:$("modeSelect").value,marketType:$("marketType").value,asset:$("asset").value,interval:$("interval").value,expiry:$("expiry").value,minScore:$("minScore").value};
     state.busy=true; const analysisStartedAt=Date.now(); $("analyzeBtn").disabled=true; $("analyzeBtn").textContent="Analyzing…"; $("analysisLoader").hidden=false; $("signalReason").textContent="Analysis in progress. The previous signal is not being refreshed until this run completes."; $("signalReason").className="signal-status warn";
     setFeedStatus(isLive()?"Loading Live market candles…":"Preparing Demo candles…","warn");
@@ -633,11 +653,8 @@
       const live=isLive();
       if(live) {
         state.candles=await fetchLiveCandles();
-        state.feedMode="live";
       } else {
         state.candles=generateDemoCandles(150);
-        state.feedMode="demo";
-        state.meta={symbol:$("asset").value,interval:$("interval").value};
       }
       if(context.mode!==$("modeSelect").value||context.marketType!==$("marketType").value||context.asset!==$("asset").value||context.interval!==$("interval").value||context.expiry!==$("expiry").value||context.minScore!==$("minScore").value){
         state.candles=[];return;
@@ -648,23 +665,21 @@
       const stale=live&&last.timeMs&&age>Math.max(intervalMs*8,15*60000);
       const result=evaluateSetup(state.candles);
       updateMetrics(state.candles,result);
-      state.lastAnalysisAt=new Date(); state.consecutiveErrors=0;
+      state.consecutiveErrors=0;
       const market=$("marketType").value==="otc"?"Pocket Option OTC (Demo)":"Forex";
       setFeedStatus(live
         ? "Live market candles ready · "+state.candles.length+" bars · latest completed bar "+last.time+" UTC · age "+formatAge(age)+(stale?" · STALE DATA: signals and alerts suppressed.":"")
         : "Demo feed ready · "+state.candles.length+" candles · "+$("asset").value+" · generated locally for strategy testing.",
         stale?"bad":"good");
       if(stale) {
-        paintSignal({side:"NONE",score:0,reason:"The latest provider candle is stale. No signal is emitted until fresh data returns.",asset:$("asset").value,market,mode:live?"Live":"Demo",interval:$("interval").value,expiryMinutes:expiryMinutes(),source:"Twelve Data",createdAt:new Date().toISOString(),indicators:result.indicators});
+        paintSignal({side:"NONE",score:0,reason:"The latest market-data candle is stale. No signal is emitted until fresh data returns.",asset:$("asset").value,market,mode:live?"Live":"Demo",interval:$("interval").value,expiryMinutes:expiryMinutes(),source:"Live feed",createdAt:new Date().toISOString(),indicators:result.indicators});
         $("indIntegrity").textContent="STALE";$("indIntegrityDetail").textContent="Signal suppressed";
-        state.lastFetchError="Provider candles stale";
       } else {
         const signal={side:result.side,score:result.score,reason:result.reason,asset:$("asset").value,market,
           mode:live?"Live":"Demo",interval:$("interval").value,expiryMinutes:expiryMinutes(),
-          source:live?"Twelve Data":"Demo feed",createdAt:new Date().toISOString(),price:last.close,
+          source:live?"Live feed":"Demo feed",createdAt:new Date().toISOString(),price:last.close,
           candleTime:last.time,indicators:result.indicators};
         paintSignal(signal);
-        state.lastFetchError="";
         if(signal.side!=="NONE") {
           const risk=riskSnapshot(), fp=latestFingerprint(signal,last);
           if(risk.blocked) {
@@ -688,10 +703,9 @@
       if(context.mode!==$("modeSelect").value||context.marketType!==$("marketType").value||context.asset!==$("asset").value||context.interval!==$("interval").value||context.expiry!==$("expiry").value||context.minScore!==$("minScore").value){
         state.candles=[];return;
       }
-      state.lastFetchError=error.message||"Unknown feed error";
       state.consecutiveErrors++;
       resetMarketState("No reliable signal generated because valid candle data was not available.");
-      setFeedStatus("Feed error: "+state.lastFetchError,"bad");
+      setFeedStatus("Feed error: "+(error.message||"Unknown feed error"),"bad");
       $("signalReason").textContent="No reliable signal generated because valid candle data was not available.";
       $("signalReason").className="signal-status bad";
       $("indIntegrity").textContent="ERROR";$("indIntegrityDetail").textContent="Feed validation failed";
@@ -792,13 +806,13 @@
   }
   function startAutoScan() {
     if(state.autoTimer){clearInterval(state.autoTimer);state.autoTimer=null;$("autoBtn").textContent="Start auto-scan";$("autoBtn").className="btn outline";$("alertChip").textContent="Alerts: manual scan";setFeedStatus("Auto-scan paused. Analyze now remains available.","warn");return;}
-    if(isLive()&&!$("marketApiKey").value.trim()){alert("Enter and save the Twelve Data API key before starting Live auto-scan.");return;}
+    if(isLive()&&!$("marketApiKey").value.trim()){alert("Enter and save a Live data key before starting auto-scan.");return;}
     state.consecutiveErrors=0;
     const interval=Math.max(60000,Number($("autoRate").value)||300000);
     state.autoTimer=setInterval(()=>{if(!state.busy)analyze({silent:true});},interval);
     $("autoBtn").textContent="Pause auto-scan";$("autoBtn").className="btn danger";
     $("alertChip").textContent="Alerts: auto-scan active";
-    setFeedStatus("Auto-scan active every "+(interval/60000)+" minute(s). Live requests use provider quota; review the interval before leaving it running.","good");
+    setFeedStatus("Auto-scan active every "+(interval/60000)+" minute(s). Live data limits may apply.","good");
     if("Notification" in window&&Notification.permission==="default")Notification.requestPermission().catch(()=>{});
   }
   function testBrowserAlert() {
@@ -837,15 +851,18 @@
     $(id).addEventListener("input",()=>{updateRisk();if(state.signal)paintSignal(state.signal);persist();});
   });
   $("saveMarketKey").addEventListener("click",()=>{
-    if(!$("marketApiKey").value.trim()){alert("Enter your Twelve Data API key first.");return;}
-    persist();$("alertStatus").textContent="Access key saved on this device. Analyze now to check the feed.";$("alertStatus").className="signal-status good";
+    const key=$("marketApiKey").value.trim();
+    if(!key){alert("Enter your Live data key first.");return;}
+    try { sessionStorage.setItem("pocketSignalLiveKey",key); }
+    catch(e) { $("alertStatus").textContent="Could not save the key for this browser session."; $("alertStatus").className="signal-status bad"; return; }
+    persist();$("alertStatus").textContent="Live data key saved for this browser session.";$("alertStatus").className="signal-status good";
     setFeedStatus("Key saved. Analyze now to check access.","warn");
   });
   $("clearMarketKey").addEventListener("click",()=>{
     $("marketApiKey").value="";
-    try{localStorage.removeItem(LEGACY);}catch(e){}
-    persist();setFeedStatus("Saved provider key removed from this browser.","warn");
-    $("alertStatus").textContent="Provider key forgotten on this device.";
+    try{sessionStorage.removeItem("pocketSignalLiveKey");}catch(e){}
+    persist();setFeedStatus("Live data key cleared from this session.","warn");
+    $("alertStatus").textContent="Live data key cleared.";
   });
   $("saveAlertSettings").addEventListener("click",()=>{
     const value=$("telegramWebhook").value.trim();
