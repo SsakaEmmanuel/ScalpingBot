@@ -95,6 +95,8 @@
   <option value="GBP/JPY"><option value="EUR/GBP"><option value="XAU/USD"><option value="XAG/USD">
 </datalist>
 <p class="ct-muted">Suggestions are common names only. Availability and exact spelling depend on your connected broker account.</p>
+<div class="ct-row"><button id="loadSymbolsBtn" class="btn outline" type="button" disabled>Load available broker symbols</button></div>
+<div id="symbolsStatus" class="ct-status" role="status" aria-live="polite">Load symbols to see the exact names available on your demo account.</div>
 <label class="ct-field" for="timeframeSelect">Candle timeframe</label>
 <select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option></select>
 <div class="ct-row"><button id="marketBtn" class="btn primary" type="button" disabled>Fetch demo candles</button><button id="csvBtn" class="btn outline" type="button" disabled>Export candles CSV</button></div>
@@ -160,6 +162,7 @@
     </div>
     <label class="ct-field" for="riskBalance">Account balance</label><input id="riskBalance" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Read account info first">
     <label class="ct-field" for="riskPercent">Risk percentage (%)</label><input id="riskPercent" class="ct-input" type="number" min="0.01" max="100" step="0.1" value="1" inputmode="decimal">
+    <label class="ct-field" for="riskDirection">Hypothetical direction</label><select id="riskDirection" class="ct-select"><option value="LONG">Buy / Long</option><option value="SHORT">Sell / Short</option></select>
     <label class="ct-field" for="riskEntry">Entry price</label><input id="riskEntry" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Auto-filled from latest close">
     <label class="ct-field" for="riskStop">Stop-loss price</label><input id="riskStop" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter stop-loss price">
     <label class="ct-field" for="riskTarget">Take-profit price (optional)</label><input id="riskTarget" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter take-profit price">
@@ -190,6 +193,8 @@
   let lastMarketMeta = { symbol: "EUR/USD", timeframe: "M1", retrievedAt: null };
   let autoRefreshTimer = null;
   let isFetchingCandles = false;
+  let isLoadingSymbols = false;
+  let availableSymbols = [];
   let lastAccountInfo = null;
   let storedSignalHistory = [];
   const historyStorageKey = () => "scalpingbot_ctrader_signal_history_" + (session?.user?.id || "local");
@@ -224,7 +229,8 @@
     $("refreshBtn").disabled = !hasSession;
     $("accountSelect").disabled = !linkedAccounts.length;
     $("accountBtn").disabled = !hasSession || !hasAccount;
-    $("marketBtn").disabled = !hasSession || !hasAccount;
+    $("marketBtn").disabled = !hasSession || !hasAccount || isFetchingCandles;
+    $("loadSymbolsBtn").disabled = !hasSession || !hasAccount || isLoadingSymbols;
     $("disconnectBtn").disabled = !hasSession || !hasAccount;
     $("csvBtn").disabled = !lastCandles.length;
     $("analyzeBtn").disabled = lastCandles.length < 25;
@@ -364,6 +370,30 @@
       setStatus("accountStatus", error.message || "Could not read account information.", "bad");
     } finally { syncButtons(); }
   });
+  async function loadAvailableSymbols() {
+    if (isLoadingSymbols || !session?.access_token || !selectedAccount()) return;
+    isLoadingSymbols = true;
+    syncButtons();
+    setStatus("symbolsStatus", "Loading symbols from the connected cTrader demo account…");
+    try {
+      const result = await api("symbols", { accountId: selectedAccount() });
+      availableSymbols = Array.isArray(result.symbols) ? result.symbols : [];
+      const list = $("symbolSuggestions");
+      list.replaceChildren();
+      for (const item of availableSymbols) {
+        const option = document.createElement("option");
+        option.value = item.name;
+        list.appendChild(option);
+      }
+      setStatus("symbolsStatus", "Loaded " + availableSymbols.length + " symbol(s) available on this demo account. Tap the symbol field and choose the exact broker name.", "good");
+    } catch (error) {
+      setStatus("symbolsStatus", error.message || "Could not load the broker symbol list.", "bad");
+    } finally {
+      isLoadingSymbols = false;
+      syncButtons();
+    }
+  }
+  $("loadSymbolsBtn").addEventListener("click", () => void loadAvailableSymbols());
   async function fetchCandles({ automatic = false } = {}) {
     if (isFetchingCandles || !session?.access_token || !selectedAccount()) return;
     isFetchingCandles = true;
@@ -419,6 +449,9 @@
   });
   $("symbolInput").addEventListener("change", () => { if (autoRefreshTimer) setStatus("autoRefreshStatus", "Symbol changed. Auto-refresh will use " + $("symbolInput").value.trim() + " at the selected interval."); });
   $("timeframeSelect").addEventListener("change", () => { if (autoRefreshTimer) setStatus("autoRefreshStatus", "Timeframe changed. Auto-refresh will use " + $("timeframeSelect").value + "."); });
+  $("refreshInterval").addEventListener("change", () => {
+    if (autoRefreshTimer) { stopAutoRefresh(); startAutoRefresh(); }
+  });
 
   function drawCandlestickChart() {
     const canvas = $("candleChart");
@@ -565,9 +598,14 @@
     const validBalance = Number.isFinite(balance) && balance > 0;
     const validPercent = Number.isFinite(percent) && percent > 0 && percent <= 100;
     const validPrices = Number.isFinite(entry) && entry > 0 && Number.isFinite(stop) && stop > 0 && entry !== stop;
+    const direction = $("riskDirection").value;
+    const stopOnCorrectSide = direction === "LONG" ? stop < entry : stop > entry;
+    const targetOnCorrectSide = !targetRaw || !Number.isFinite(target) || target <= 0 || (direction === "LONG" ? target > entry : target < entry);
     $("riskAmount").textContent = "—"; $("riskDistance").textContent = "—"; $("riskReward").textContent = "—"; $("riskUnits").textContent = "—";
-    if (!validBalance || !validPercent || !validPrices) {
-      setStatus("riskStatus", "Enter a positive balance, risk percentage, entry price and a different stop-loss price.", "warn");
+    if (!validBalance || !validPercent || !validPrices || !stopOnCorrectSide || !targetOnCorrectSide) {
+      setStatus("riskStatus", !stopOnCorrectSide || !targetOnCorrectSide
+        ? "Check the selected direction: a Long needs stop below entry and target above entry; a Short needs stop above entry and target below entry."
+        : "Enter a positive balance, risk percentage, entry price and a different stop-loss price.", "warn");
       return;
     }
     const riskAmount = balance * percent / 100;
@@ -589,7 +627,7 @@
       setStatus("riskStatus", "Risk amount and distance calculated. Position units are omitted because the symbol/account currency or contract specifications need broker-specific conversion.", "warn");
     }
   }
-  ["riskBalance","riskPercent","riskEntry","riskStop","riskTarget"].forEach(id => {
+  ["riskBalance","riskPercent","riskEntry","riskStop","riskTarget","riskDirection"].forEach(id => {
     $(id).addEventListener("input", () => {
       if (id === "riskEntry") $(id).dataset.autofill = "false";
       updateRiskCalculator();
