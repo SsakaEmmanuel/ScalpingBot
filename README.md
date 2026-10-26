@@ -45,3 +45,22 @@ node tests/check-pocket-signals.mjs
 ```
 
 GitHub Actions runs these checks when the Pocket Signals page, test file, or workflow changes.
+
+
+## cTrader demo connection (read-only)
+
+The cTrader integration is a separate Supabase Edge Function. It does not replace the MT5 bridge or existing Pocket Signals market-data proxy.
+
+- Edge Function: `ctrader-connect`
+- OAuth redirect URI: `https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/ctrader-connect`
+- Required Supabase Edge Function secrets: `CTRADER_CLIENT_ID`, `CTRADER_CLIENT_SECRET`, and `CTRADER_TOKEN_ENCRYPTION_KEY`.
+- Set these in Supabase Dashboard → Edge Functions → Secrets. Never put them in browser code, `config.js`, or GitHub.
+- Generate a Base64-encoded 32-byte encryption key on Windows with Python using:
+  ```powershell
+  py -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+  ```
+  Save a secure backup of this key. Losing it prevents decrypting existing stored tokens.
+- In cTrader Open API → Applications → ScalpingBot26 → Edit, add the exact redirect URI above.
+- Open `ctrader.html`, sign in to ScalpingBot, and choose **Connect / Add cTrader Demo**. Approve only the `accounts` (read-only) scope for the Pepperstone demo account.
+- The function verifies Supabase sessions for browser actions, uses one-time short-lived OAuth state, and encrypts cTrader access/refresh tokens using AES-GCM before database storage. The token/state tables have RLS enabled and no browser access policies.
+- Only demo account records are stored and queried through cTrader's demo WebSocket endpoint. There are no order-placement actions in this integration.
