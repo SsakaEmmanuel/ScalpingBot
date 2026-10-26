@@ -222,7 +222,7 @@ async function ensureFreshTokens(admin: ReturnType<typeof createClient>, userId:
     access_token_expires_at: new Date(now.getTime() + token.expiresIn * 1000).toISOString(),
     updated_at: now.toISOString(),
   };
-  const { error } = await admin.from("ctrader_connections").update(changes).eq("user_id", userId);
+  const { error } = await admin.from("ctrader_connections").update(changes).eq("user_id", userId).eq("ctid_trader_account_id", row.ctid_trader_account_id).eq("environment", "demo");
   if (error) throw new Error("Could not securely update the cTrader session. Reconnect cTrader and try again.");
   return {
     accessToken: token.accessToken,
