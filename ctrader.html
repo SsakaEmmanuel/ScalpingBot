@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1020">
+<meta name="referrer" content="no-referrer">
+<title>cTrader Connection | ScalpingBot</title>
+<link rel="stylesheet" href="styles.css?v=blue-yellow-theme-4">
+<style>
+.ct-shell{max-width:1120px;margin:28px auto 70px;padding:0 16px;color:#eef4ff}
+.ct-hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px}
+.ct-hero h1{font-size:clamp(28px,4vw,42px);margin:8px 0;letter-spacing:-1px}
+.ct-hero p{max-width:700px;color:#aebbd2;line-height:1.65}
+.ct-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.ct-card{background:linear-gradient(145deg,#121d32,#0e1729);border:1px solid #293853;border-radius:16px;padding:18px;min-width:0}
+.ct-card h2,.ct-card h3{margin:0 0 12px}
+.ct-muted{font-size:12px;line-height:1.65;color:#9eafca}
+.ct-status{padding:12px;border-radius:10px;background:#17243b;border:1px solid #34445f;color:#d8e4fa;font-size:13px;line-height:1.6;overflow-wrap:anywhere;margin:12px 0}
+.ct-status.good{border-color:#42d6ad70;color:#a8ffe2;background:#42d6ad0d}
+.ct-status.bad{border-color:#ff858570;color:#ffc2c2;background:#ff85850d}
+.ct-status.warn{border-color:#f5cf7570;color:#ffe7a5;background:#f5cf750d}
+.ct-field{display:block;margin:12px 0 6px;color:#b8c6dc;font-size:12px}
+.ct-input,.ct-select{width:100%;box-sizing:border-box;border:1px solid #354561;border-radius:9px;background:#0b1222;color:#f4f7ff;padding:11px;font:inherit}
+.ct-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.ct-row .btn{flex:1;min-width:130px}
+.ct-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+.ct-metric{padding:12px;border-radius:10px;border:1px solid #293853;background:#0d1627;min-width:0}
+.ct-metric span{display:block;font-size:10px;color:#9eafca;text-transform:uppercase;letter-spacing:.5px}
+.ct-metric strong{display:block;font-size:18px;margin-top:6px;overflow-wrap:anywhere}
+.ct-tablewrap{overflow-x:auto;margin-top:12px}
+.ct-table{width:100%;border-collapse:collapse;min-width:540px}
+.ct-table th,.ct-table td{font-size:11px;text-align:right;padding:9px 8px;border-bottom:1px solid #293853;white-space:nowrap}
+.ct-table th:first-child,.ct-table td:first-child{text-align:left}
+.ct-table th{color:#aebbd2}
+.ct-chip{display:inline-block;border:1px solid #42d6ad70;border-radius:999px;padding:6px 9px;color:#8af4cf;font-size:10px;font-weight:800}
+.ct-foot{margin-top:18px;color:#9eafca;font-size:11px;line-height:1.7}
+.ct-hidden{display:none!important}
+@media(max-width:760px){.ct-grid{grid-template-columns:1fr}.ct-card{padding:14px}.ct-shell{margin-top:18px}}
+</style>
+</head>
+<body class="workspace-page">
+<header class="topbar">
+<a class="brand" href="index.html"><span class="brand-mark">S</span><span>Scalping<span class="accent">Bot</span></span></a>
+<nav class="workspace-links"><a href="dashboard.html">Overview</a><a href="market.html">Market Analysis</a><a href="demo.html">Demo Trading</a><a href="pocket-signals.html">Pocket Signals</a><a class="active" href="ctrader.html">cTrader</a></nav>
+<div class="auth-actions"><a class="btn outline" href="dashboard.html">Dashboard</a></div>
+</header>
+<main class="ct-shell">
+<section class="ct-hero">
+<div><div class="eyebrow">SCALPINGBOT / BROKER DATA</div><h1>cTrader <span class="gradient">Demo Connection</span></h1>
+<p>Connect the authorized Pepperstone demo account, verify its account information, and fetch real cTrader demo candles. This page has read-only access and cannot place orders.</p></div>
+<div><span class="ct-chip">DEMO ONLY · READ ONLY</span></div>
+</section>
+<section class="ct-card">
+<h2>Connection status</h2>
+<p class="ct-muted">Sign in with your existing ScalpingBot account first. cTrader authorization will then be tied to that signed-in account.</p>
+<div id="mainStatus" class="ct-status warn" role="status" aria-live="polite">Checking ScalpingBot sign-in…</div>
+<div class="ct-row">
+<button id="connectBtn" class="btn primary" type="button" disabled>Connect / Add cTrader Demo</button>
+<button id="refreshBtn" class="btn outline" type="button" disabled>Refresh connection</button>
+<a class="btn outline" href="index.html">Sign in to ScalpingBot</a>
+</div>
+<label class="ct-field" for="accountSelect">Connected demo account</label>
+<select id="accountSelect" class="ct-select" disabled><option value="">No linked demo account</option></select>
+<div class="ct-row">
+<button id="accountBtn" class="btn outline" type="button" disabled>Read account information</button>
+<button id="disconnectBtn" class="btn outline" type="button" disabled>Remove saved connection</button>
+</div>
+<div id="accountStatus" class="ct-status" role="status" aria-live="polite">Account information has not been requested.</div>
+<div id="accountMetrics" class="ct-info ct-hidden">
+<div class="ct-metric"><span>Demo balance</span><strong id="balanceMetric">—</strong></div>
+<div class="ct-metric"><span>Leverage</span><strong id="leverageMetric">—</strong></div>
+<div class="ct-metric"><span>Account type</span><strong id="typeMetric">—</strong></div>
+<div class="ct-metric"><span>Deposit currency</span><strong id="currencyMetric">—</strong></div>
+</div>
+</section>
+<section class="ct-grid" style="margin-top:16px">
+<div class="ct-card">
+<h2>Market data test</h2>
+<p class="ct-muted">Requests historical candles from the cTrader demo API. Use the same symbol name shown in your Pepperstone cTrader platform.</p>
+<label class="ct-field" for="symbolInput">Symbol / pair</label>
+<input id="symbolInput" class="ct-input" maxlength="16" value="EUR/USD" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="EUR/USD">
+<label class="ct-field" for="timeframeSelect">Candle timeframe</label>
+<select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option></select>
+<div class="ct-row"><button id="marketBtn" class="btn primary" type="button" disabled>Fetch demo candles</button><button id="csvBtn" class="btn outline" type="button" disabled>Export candles CSV</button></div>
+<div id="marketStatus" class="ct-status" role="status" aria-live="polite">No cTrader candles fetched yet.</div>
+<div class="ct-info">
+<div class="ct-metric"><span>Source</span><strong>cTrader API</strong></div>
+<div class="ct-metric"><span>Last retrieved</span><strong id="retrievedMetric">—</strong></div>
+</div>
+</div>
+<div class="ct-card">
+<h2>Latest candles</h2>
+<p class="ct-muted">The latest 15 rows from the last successful request are shown below. Prices are read-only and are not trade instructions.</p>
+<div class="ct-tablewrap"><table class="ct-table"><thead><tr><th>Time (UTC)</th><th>Open</th><th>High</th><th>Low</th><th>Close</th></tr></thead><tbody id="candlesBody"><tr><td colspan="5">No candle data.</td></tr></tbody></table></div>
+</div>
+</section>
+<p class="ct-foot">Security: Client Secret, access tokens, and refresh tokens stay on the Supabase backend. The browser never receives the cTrader tokens. “Remove saved connection” deletes the encrypted token records in ScalpingBot; to revoke app access entirely, use cTrader ID / Open API application settings. Trading is disabled in this integration.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const cfg = window.SCALPINGBOT_CONFIG || {};
+  const endpoint = "https://aejoqsckzceufdbwhegl.supabase.co/functions/v1/ctrader-connect";
+  let client = null;
+  let session = null;
+  let linkedAccounts = [];
+  let lastCandles = [];
+  const setStatus = (id, message, tone = "") => {
+    $(id).textContent = message;
+    $(id).className = "ct-status" + (tone ? " " + tone : "");
+  };
+  async function api(action, extra = {}) {
+    if (!client) throw new Error("Supabase account service is not configured.");
+    const { data, error } = await client.auth.getSession();
+    if (error) throw error;
+    session = data.session;
+    if (!session?.access_token) throw new Error("Sign in to ScalpingBot first, then open this page again.");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "authorization": "Bearer " + session.access_token,
+        "apikey": cfg.supabasePublishableKey
+      },
+      body: JSON.stringify({ action, ...extra })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) throw new Error(body.error || "The cTrader request failed.");
+    return body;
+  }
+  function selectedAccount() { return $("accountSelect").value; }
+  function syncButtons() {
+    const hasSession = Boolean(session?.access_token);
+    const hasAccount = Boolean(selectedAccount());
+    $("connectBtn").disabled = !hasSession;
+    $("refreshBtn").disabled = !hasSession;
+    $("accountSelect").disabled = !linkedAccounts.length;
+    $("accountBtn").disabled = !hasSession || !hasAccount;
+    $("marketBtn").disabled = !hasSession || !hasAccount;
+    $("disconnectBtn").disabled = !hasSession || !hasAccount;
+    $("csvBtn").disabled = !lastCandles.length;
+  }
+  function renderAccounts(accounts) {
+    linkedAccounts = Array.isArray(accounts) ? accounts : [];
+    const select = $("accountSelect");
+    const previous = select.value;
+    select.replaceChildren();
+    if (!linkedAccounts.length) {
+      select.add(new Option("No linked demo account — connect cTrader", ""));
+    } else {
+      for (const account of linkedAccounts) {
+        select.add(new Option(account.label + " · " + account.accountId, account.accountId));
+      }
+      select.value = linkedAccounts.some(a => a.accountId === previous) ? previous : linkedAccounts[0].accountId;
+    }
+    syncButtons();
+  }
+  async function loadStatus() {
+    if (!session?.access_token) {
+      setStatus("mainStatus", "Sign in to ScalpingBot to securely link your cTrader demo account.", "warn");
+      syncButtons();
+      return;
+    }
+    setStatus("mainStatus", "Checking saved cTrader demo connections…");
+    try {
+      const result = await api("status");
+      renderAccounts(result.accounts);
+      setStatus("mainStatus", result.accounts.length
+        ? "Connected: " + result.accounts.length + " demo account(s). Choose an account and test account information or candles."
+        : "No cTrader demo account linked yet. Tap Connect / Add cTrader Demo to authorize the account.", result.accounts.length ? "good" : "warn");
+    } catch (error) {
+      setStatus("mainStatus", error.message || "Could not load connection status.", "bad");
+    }
+    syncButtons();
+  }
+  async function boot() {
+    if (!cfg.supabaseUrl || !cfg.supabasePublishableKey || !window.supabase?.createClient) {
+      setStatus("mainStatus", "ScalpingBot account configuration is incomplete. Open the Security page or contact the site administrator.", "bad");
+      return;
+    }
+    client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+    const { data } = await client.auth.getSession();
+    session = data.session;
+    if (session) setStatus("mainStatus", "Signed in as " + (session.user.email || "ScalpingBot user") + ". Checking cTrader connection…", "good");
+    else setStatus("mainStatus", "You are not signed in. Sign in to ScalpingBot first; this page will not ask for your cTrader password.", "warn");
+    await loadStatus();
+    client.auth.onAuthStateChange((_event, newSession) => { session = newSession; void loadStatus(); });
+  }
+  $("connectBtn").addEventListener("click", async () => {
+    $("connectBtn").disabled = true;
+    setStatus("mainStatus", "Preparing secure cTrader authorization…");
+    try {
+      const result = await api("start");
+      window.location.assign(result.authorizeUrl);
+    } catch (error) {
+      setStatus("mainStatus", error.message || "Could not start cTrader authorization.", "bad");
+      syncButtons();
+    }
+  });
+  $("refreshBtn").addEventListener("click", () => void loadStatus());
+  $("accountSelect").addEventListener("change", syncButtons);
+  $("accountBtn").addEventListener("click", async () => {
+    $("accountBtn").disabled = true;
+    setStatus("accountStatus", "Reading account details from the cTrader demo API…");
+    try {
+      const result = await api("account-info", { accountId: selectedAccount() });
+      const account = result.account;
+      $("balanceMetric").textContent = account.balance == null ? "Unavailable" :
+        new Intl.NumberFormat("en-US", { style: "currency", currency: (account.currency || "USD"), maximumFractionDigits: 2 }).format(account.balance);
+      $("leverageMetric").textContent = account.leverage == null ? "—" : "1:" + account.leverage;
+      $("typeMetric").textContent = account.accountType || "Demo";
+      $("currencyMetric").textContent = account.currency || "Unknown";
+      $("accountMetrics").classList.remove("ct-hidden");
+      setStatus("accountStatus", "Account information verified from Pepperstone cTrader demo. Read-only access; no order operations were requested.", "good");
+    } catch (error) {
+      setStatus("accountStatus", error.message || "Could not read account information.", "bad");
+    } finally { syncButtons(); }
+  });
+  $("marketBtn").addEventListener("click", async () => {
+    $("marketBtn").disabled = true;
+    setStatus("marketStatus", "Requesting historical demo candles…");
+    try {
+      const symbol = $("symbolInput").value.trim();
+      const timeframe = $("timeframeSelect").value;
+      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 100 });
+      const market = result.market;
+      lastCandles = market.candles || [];
+      $("retrievedMetric").textContent = new Date(market.retrievedAt).toLocaleTimeString();
+      const body = $("candlesBody");
+      body.replaceChildren();
+      for (const candle of lastCandles.slice(-15).reverse()) {
+        const tr = document.createElement("tr");
+        const values = [
+          new Date(candle.time * 1000).toISOString().replace("T", " ").slice(0, 19),
+          Number(candle.open).toFixed(5), Number(candle.high).toFixed(5),
+          Number(candle.low).toFixed(5), Number(candle.close).toFixed(5)
+        ];
+        for (const value of values) { const td = document.createElement("td"); td.textContent = value; tr.appendChild(td); }
+        body.appendChild(tr);
+      }
+      setStatus("marketStatus", "Received " + lastCandles.length + " candles for " + market.symbol + " (" + timeframe + ") from the cTrader demo API.", "good");
+    } catch (error) {
+      setStatus("marketStatus", error.message || "Could not fetch cTrader candles.", "bad");
+    } finally { syncButtons(); }
+  });
+  $("disconnectBtn").addEventListener("click", async () => {
+    const accountId = selectedAccount();
+    if (!accountId || !confirm("Remove the encrypted cTrader token records for this demo account from ScalpingBot? This does not revoke the application permission inside cTrader.")) return;
+    $("disconnectBtn").disabled = true;
+    try {
+      await api("disconnect", { accountId });
+      renderAccounts(linkedAccounts.filter(a => a.accountId !== accountId));
+      setStatus("mainStatus", "Saved cTrader token records removed. You can reconnect whenever you're ready.", "good");
+      $("accountMetrics").classList.add("ct-hidden");
+    } catch (error) {
+      setStatus("mainStatus", error.message || "Could not remove the saved connection.", "bad");
+    } finally { syncButtons(); }
+  });
+  $("csvBtn").addEventListener("click", () => {
+    if (!lastCandles.length) return;
+    const fields = ["time","open","high","low","close","volume"];
+    const rows = [fields.join(",")].concat(lastCandles.map(c => fields.map(f => String(c[f] ?? "")).join(",")));
+    const url = URL.createObjectURL(new Blob([rows.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "ctrader-demo-candles.csv"; a.click(); URL.revokeObjectURL(url);
+  });
+  void boot();
+})();
+</script>
+</body>
+</html>
