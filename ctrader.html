@@ -442,6 +442,13 @@
   $("accountSelect").addEventListener("change", () => {
     stopAutoRefresh();
     lastAccountInfo = null;
+    availableSymbols = [];
+    const list = $("symbolSuggestions");
+    list.replaceChildren();
+    for (const name of ["EUR/USD","GBP/USD","AUD/USD","NZD/USD","USD/JPY","USD/CHF","USD/CAD","EUR/JPY","GBP/JPY","EUR/GBP","XAU/USD","XAG/USD"]) {
+      const option = document.createElement("option"); option.value = name; list.appendChild(option);
+    }
+    setStatus("symbolsStatus", "Load symbols to see the exact names available on the selected demo account.");
     $("riskCurrency").textContent = "Read account info";
     $("riskAccountInfo").textContent = "Load account info above";
     $("riskBalance").value = "";
