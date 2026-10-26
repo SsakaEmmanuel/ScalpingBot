@@ -13,6 +13,10 @@ on:
   pull_request:
     paths:
       - "pocket-signals.html"
+      - "ctrader.html"
+      - "supabase/functions/ctrader-connect/index.ts"
+      - "supabase/migrations/**"
+      - "tests/check-ctrader.mjs"
       - "tests/check-pocket-signals.mjs"
       - ".github/workflows/pocket-signals-check.yml"
 
