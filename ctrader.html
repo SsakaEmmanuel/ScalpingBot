@@ -37,6 +37,15 @@
 .ct-foot{margin-top:18px;color:#9eafca;font-size:11px;line-height:1.7}
 .ct-hidden{display:none!important}
 @media(max-width:760px){.ct-grid{grid-template-columns:1fr}.ct-card{padding:14px}.ct-shell{margin-top:18px}}
+
+.ct-chart-wrap{width:100%;height:320px;position:relative;overflow:hidden;border:1px solid #293853;border-radius:12px;background:#0b1222}
+#candleChart{display:block;width:100%;height:100%}
+.ct-chart-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;color:#9eafca;font-size:11px;align-items:center}
+.ct-chart-legend span{display:inline-flex;gap:6px;align-items:center}
+.ct-dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+.ct-dot.up{background:#42d6ad}.ct-dot.down{background:#ff8585}
+@media(max-width:480px){.ct-chart-wrap{height:260px}}
+
 </style>
 </head>
 <body class="workspace-page">
@@ -94,6 +103,15 @@
 <p class="ct-muted">The latest 15 rows from the last successful request are shown below. Prices are read-only and are not trade instructions.</p>
 <div class="ct-tablewrap"><table class="ct-table"><thead><tr><th>Time (UTC)</th><th>Open</th><th>High</th><th>Low</th><th>Close</th></tr></thead><tbody id="candlesBody"><tr><td colspan="5">No candle data.</td></tr></tbody></table></div>
 </div>
+</section>
+
+
+<section class="ct-card" style="margin-top:16px">
+  <h2>Candlestick chart</h2>
+  <p class="ct-muted">Responsive chart of the latest fetched demo candles. The chart updates when you fetch new candles; it does not stream live ticks.</p>
+  <div id="chartStatus" class="ct-status warn" role="status" aria-live="polite">Fetch demo candles to draw the chart.</div>
+  <div class="ct-chart-wrap"><canvas id="candleChart" role="img" aria-label="Candlestick chart of fetched cTrader demo candles"></canvas></div>
+  <div class="ct-chart-legend"><span><i class="ct-dot up"></i> Bullish candle</span><span><i class="ct-dot down"></i> Bearish candle</span><span id="chartRange">No candle range loaded</span></div>
 </section>
 
 <section class="ct-card" style="margin-top:16px">
@@ -261,10 +279,79 @@
         body.appendChild(tr);
       }
       setStatus("marketStatus", "Received " + lastCandles.length + " candles for " + market.symbol + " (" + timeframe + ") from the cTrader demo API.", "good");
+      drawCandlestickChart();
     } catch (error) {
       setStatus("marketStatus", error.message || "Could not fetch cTrader candles.", "bad");
     } finally { syncButtons(); }
   });
+
+
+  function drawCandlestickChart() {
+    const canvas = $("candleChart");
+    const wrap = canvas?.parentElement;
+    if (!canvas || !wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const width = Math.max(280, rect.width);
+    const height = Math.max(220, rect.height);
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#0b1222";
+    ctx.fillRect(0, 0, width, height);
+    const candles = lastCandles.filter(c => [c.time,c.open,c.high,c.low,c.close].every(v => Number.isFinite(Number(v)))).slice(-60);
+    if (!candles.length) {
+      ctx.fillStyle = "#9eafca";
+      ctx.font = "13px system-ui,sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Fetch demo candles to display chart", width / 2, height / 2);
+      $("chartRange").textContent = "No candle range loaded";
+      setStatus("chartStatus", "Fetch demo candles to draw the chart.", "warn");
+      return;
+    }
+    const left = 12, right = 62, top = 14, bottom = 30;
+    const plotW = width - left - right, plotH = height - top - bottom;
+    const lo = Math.min(...candles.map(c => Number(c.low)));
+    const hi = Math.max(...candles.map(c => Number(c.high)));
+    const pad = (hi - lo || Math.abs(hi) * 0.001 || 0.0001) * 0.08;
+    const min = lo - pad, max = hi + pad, range = max - min || 1;
+    const y = price => top + (max - price) / range * plotH;
+    ctx.font = "10px system-ui,sans-serif";
+    ctx.textAlign = "right";
+    for (let i = 0; i <= 4; i++) {
+      const gy = top + plotH * i / 4;
+      ctx.strokeStyle = "#243149";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(left, gy); ctx.lineTo(width - right + 4, gy); ctx.stroke();
+      const price = max - range * i / 4;
+      ctx.fillStyle = "#9eafca";
+      ctx.fillText(price.toFixed(Math.abs(price) < 10 ? 5 : 2), width - 6, gy + 3);
+    }
+    const slot = plotW / candles.length;
+    const bodyW = Math.max(2, Math.min(10, slot * 0.62));
+    candles.forEach((c, i) => {
+      const x = left + slot * (i + 0.5);
+      const open = Number(c.open), close = Number(c.close), high = Number(c.high), low = Number(c.low);
+      const up = close >= open;
+      const color = up ? "#42d6ad" : "#ff8585";
+      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, y(high)); ctx.lineTo(x, y(low)); ctx.stroke();
+      const bodyTop = Math.min(y(open), y(close));
+      const bodyHeight = Math.max(1.5, Math.abs(y(open) - y(close)));
+      ctx.fillRect(x - bodyW / 2, bodyTop, bodyW, bodyHeight);
+    });
+    ctx.fillStyle = "#9eafca";
+    ctx.textAlign = "left";
+    ctx.fillText(new Date(candles[0].time * 1000).toISOString().slice(11,16), left, height - 10);
+    ctx.textAlign = "right";
+    ctx.fillText(new Date(candles[candles.length - 1].time * 1000).toISOString().slice(11,16), width - right + 4, height - 10);
+    $("chartRange").textContent = candles.length + " candles · " + new Date(candles[0].time * 1000).toISOString().slice(0,16).replace("T"," ") + " to " + new Date(candles[candles.length - 1].time * 1000).toISOString().slice(0,16).replace("T"," ") + " UTC";
+    setStatus("chartStatus", "Chart drawn from " + candles.length + " of the latest fetched candles.", "good");
+  }
+  window.addEventListener("resize", drawCandlestickChart);
 
   function ema(values, period) {
     const k = 2 / (period + 1);
