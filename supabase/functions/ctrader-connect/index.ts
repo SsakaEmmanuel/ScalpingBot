@@ -233,16 +233,16 @@ async function connectAccount(accessToken: string, accountId: string, fn: (ws: W
   const { clientId, clientSecret } = requireSecrets();
   return await withDemoSocket(async (ws) => {
     await sendAndWait(ws, 2100, { clientId, clientSecret }, 2101);
-    await sendAndWait(ws, 2102, { ctidTraderAccountId: accountId, accessToken }, 2103);
+    await sendAndWait(ws, 2102, { ctidTraderAccountId: Number(accountId), accessToken }, 2103);
     return await fn(ws);
   });
 }
 async function accountInfo(accessToken: string, accountId: string) {
   return await connectAccount(accessToken, accountId, async (ws) => {
-    const traderRes = await sendAndWait(ws, 2121, { ctidTraderAccountId: accountId }, 2122);
+    const traderRes = await sendAndWait(ws, 2121, { ctidTraderAccountId: Number(accountId) }, 2122);
     const trader = traderRes.payload?.trader;
     if (!trader) throw new Error("cTrader did not return account details.");
-    const assetsRes = await sendAndWait(ws, 2112, { ctidTraderAccountId: accountId }, 2113);
+    const assetsRes = await sendAndWait(ws, 2112, { ctidTraderAccountId: Number(accountId) }, 2113);
     const assets = assetsRes.payload?.asset || [];
     const currency = Array.isArray(assets) ? assets.find((a: Record<string, any>) => String(a.assetId) === String(trader.depositAssetId)) : null;
     const moneyDigits = Number(trader.moneyDigits ?? 2);
@@ -268,13 +268,13 @@ async function readMarketData(accessToken: string, accountId: string, rawSymbol:
   if (!wanted || wanted.length < 6 || wanted.length > 12) throw new Error("Enter a valid symbol such as EUR/USD.");
   const safeCount = Math.min(250, Math.max(60, Math.trunc(count || 100)));
   return await connectAccount(accessToken, accountId, async (ws) => {
-    const symbolsRes = await sendAndWait(ws, 2114, { ctidTraderAccountId: accountId }, 2115);
+    const symbolsRes = await sendAndWait(ws, 2114, { ctidTraderAccountId: Number(accountId) }, 2115);
     const symbols = symbolsRes.payload?.symbol || [];
     const symbol = Array.isArray(symbols) ? symbols.find((s: Record<string, any>) => normalizeSymbol(String(s.name || "")) === wanted) : null;
     if (!symbol) throw new Error("That symbol is not available on this cTrader demo account. Check the exact name in cTrader.");
     const barsRes = await sendAndWait(ws, 2137, {
-      ctidTraderAccountId: accountId,
-      symbolId: String(symbol.symbolId),
+      ctidTraderAccountId: Number(accountId),
+      symbolId: Number(symbol.symbolId),
       period,
       count: safeCount,
       toTimestamp: Date.now(),
