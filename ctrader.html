@@ -95,6 +95,22 @@
 <div class="ct-tablewrap"><table class="ct-table"><thead><tr><th>Time (UTC)</th><th>Open</th><th>High</th><th>Low</th><th>Close</th></tr></thead><tbody id="candlesBody"><tr><td colspan="5">No candle data.</td></tr></tbody></table></div>
 </div>
 </section>
+
+<section class="ct-card" style="margin-top:16px">
+  <h2>Candle signal analysis</h2>
+  <p class="ct-muted">Rule-based educational analysis of the most recently fetched demo candles. Uses EMA 9/21 and RSI 14. It does not place orders or predict outcomes.</p>
+  <div class="ct-row"><button id="analyzeBtn" class="btn primary" type="button" disabled>Analyze candles</button></div>
+  <div id="signalStatus" class="ct-status warn" role="status" aria-live="polite">Fetch candle data first, then analyze it.</div>
+  <div id="signalMetrics" class="ct-info ct-hidden">
+    <div class="ct-metric"><span>Signal</span><strong id="signalValue">NEUTRAL</strong></div>
+    <div class="ct-metric"><span>Latest close</span><strong id="signalClose">—</strong></div>
+    <div class="ct-metric"><span>EMA 9 / EMA 21</span><strong id="signalEma">—</strong></div>
+    <div class="ct-metric"><span>RSI 14</span><strong id="signalRsi">—</strong></div>
+  </div>
+  <h3 style="margin-top:16px">Why this signal?</h3>
+  <ul id="signalReasons" class="ct-muted"><li>No analysis has been run.</li></ul>
+  <p class="ct-foot">Signals are based only on the retrieved candle history. They can be wrong, do not account for spreads or news, and are not financial advice. No automatic order placement is available.</p>
+</section>
 <p class="ct-foot">Security: Client Secret, access tokens, and refresh tokens stay on the Supabase backend. The browser never receives the cTrader tokens. “Remove saved connection” deletes the encrypted token records in ScalpingBot; to revoke app access entirely, use cTrader ID / Open API application settings. Trading is disabled in this integration.</p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -142,6 +158,7 @@
     $("marketBtn").disabled = !hasSession || !hasAccount;
     $("disconnectBtn").disabled = !hasSession || !hasAccount;
     $("csvBtn").disabled = !lastCandles.length;
+    $("analyzeBtn").disabled = lastCandles.length < 25;
   }
   function renderAccounts(accounts) {
     linkedAccounts = Array.isArray(accounts) ? accounts : [];
@@ -248,6 +265,70 @@
       setStatus("marketStatus", error.message || "Could not fetch cTrader candles.", "bad");
     } finally { syncButtons(); }
   });
+
+  function ema(values, period) {
+    const k = 2 / (period + 1);
+    let value = values[0];
+    for (let i = 1; i < values.length; i++) value = values[i] * k + value * (1 - k);
+    return value;
+  }
+  function rsi(values, period = 14) {
+    if (values.length <= period) return 50;
+    let gains = 0, losses = 0;
+    for (let i = 1; i <= period; i++) {
+      const delta = values[i] - values[i - 1];
+      if (delta > 0) gains += delta; else losses -= delta;
+    }
+    let avgGain = gains / period, avgLoss = losses / period;
+    for (let i = period + 1; i < values.length; i++) {
+      const delta = values[i] - values[i - 1];
+      avgGain = (avgGain * (period - 1) + Math.max(delta, 0)) / period;
+      avgLoss = (avgLoss * (period - 1) + Math.max(-delta, 0)) / period;
+    }
+    if (avgLoss === 0) return avgGain === 0 ? 50 : 100;
+    return 100 - (100 / (1 + avgGain / avgLoss));
+  }
+  $("analyzeBtn").addEventListener("click", () => {
+    const closes = lastCandles.map(c => Number(c.close)).filter(Number.isFinite);
+    if (closes.length < 25) {
+      setStatus("signalStatus", "Fetch at least 25 valid candles before analysis.", "warn");
+      return;
+    }
+    const ema9 = ema(closes.slice(-Math.min(closes.length, 60)), 9);
+    const ema21 = ema(closes.slice(-Math.min(closes.length, 100)), 21);
+    const current = closes[closes.length - 1];
+    const previous = closes[closes.length - 2];
+    const rsi14 = rsi(closes, 14);
+    const reasons = [];
+    const bullishTrend = ema9 > ema21;
+    const bearishTrend = ema9 < ema21;
+    if (bullishTrend) reasons.push("EMA 9 is above EMA 21, indicating short-term upward momentum.");
+    else if (bearishTrend) reasons.push("EMA 9 is below EMA 21, indicating short-term downward momentum.");
+    else reasons.push("EMA 9 and EMA 21 are equal or nearly aligned, so trend direction is unclear.");
+    if (current > ema9) reasons.push("Latest close is above EMA 9.");
+    else if (current < ema9) reasons.push("Latest close is below EMA 9.");
+    else reasons.push("Latest close is at EMA 9.");
+    if (rsi14 >= 55 && rsi14 < 70) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", supporting bullish momentum without reaching the 70 overbought threshold.");
+    else if (rsi14 > 30 && rsi14 <= 45) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", supporting bearish momentum without dropping below the 30 oversold threshold.");
+    else if (rsi14 >= 70) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", in a commonly watched overbought zone; avoid treating this alone as a sell signal.");
+    else if (rsi14 <= 30) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", in a commonly watched oversold zone; avoid treating this alone as a buy signal.");
+    else reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", in a middle zone that does not strongly confirm either direction.");
+    let signal = "NEUTRAL";
+    if (bullishTrend && current > ema9 && rsi14 >= 55 && rsi14 < 70) signal = "BUY";
+    else if (bearishTrend && current < ema9 && rsi14 <= 45 && rsi14 > 30) signal = "SELL";
+    if (previous === current) reasons.push("The latest close is unchanged from the prior candle.");
+    reasons.push("Rule: BUY requires EMA 9 > EMA 21, close > EMA 9, and RSI 14 between 55 and 70. SELL requires the opposite trend/price conditions and RSI between 30 and 45. Otherwise the result is NEUTRAL.");
+    $("signalValue").textContent = signal;
+    $("signalClose").textContent = current.toFixed(5);
+    $("signalEma").textContent = ema9.toFixed(5) + " / " + ema21.toFixed(5);
+    $("signalRsi").textContent = rsi14.toFixed(1);
+    const list = $("signalReasons");
+    list.replaceChildren();
+    for (const reason of reasons) { const li = document.createElement("li"); li.textContent = reason; list.appendChild(li); }
+    $("signalMetrics").classList.remove("ct-hidden");
+    setStatus("signalStatus", signal + " signal generated from " + closes.length + " retrieved candles. This is an indicator-based observation, not a guaranteed outcome.", signal === "NEUTRAL" ? "warn" : "good");
+  });
+
   $("disconnectBtn").addEventListener("click", async () => {
     const accountId = selectedAccount();
     if (!accountId || !confirm("Remove the encrypted cTrader token records for this demo account from ScalpingBot? This does not revoke the application permission inside cTrader.")) return;
