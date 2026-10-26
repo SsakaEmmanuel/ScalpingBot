@@ -211,7 +211,7 @@
       const result = await api("account-info", { accountId: selectedAccount() });
       const account = result.account;
       $("balanceMetric").textContent = account.balance == null ? "Unavailable" :
-        new Intl.NumberFormat("en-US", { style: "currency", currency: (account.currency || "USD"), maximumFractionDigits: 2 }).format(account.balance);
+        Number(account.balance).toLocaleString("en-US", { maximumFractionDigits: 2 }) + " " + (account.currency || "currency unknown");
       $("leverageMetric").textContent = account.leverage == null ? "—" : "1:" + account.leverage;
       $("typeMetric").textContent = account.accountType || "Demo";
       $("currencyMetric").textContent = account.currency || "Unknown";
