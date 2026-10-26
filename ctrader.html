@@ -333,7 +333,17 @@
     if (session) setStatus("mainStatus", "Signed in as " + (session.user.email || "ScalpingBot user") + ". Checking cTrader connection…", "good");
     else setStatus("mainStatus", "You are not signed in. Sign in to ScalpingBot first; this page will not ask for your cTrader password.", "warn");
     await loadStatus();
-    client.auth.onAuthStateChange((_event, newSession) => { stopAutoRefresh(); session = newSession; loadSignalHistory(); lastAccountInfo = null; void loadStatus(); });
+    client.auth.onAuthStateChange((_event, newSession) => {
+      const previousUserId = session?.user?.id || null;
+      const nextUserId = newSession?.user?.id || null;
+      session = newSession;
+      if (previousUserId !== nextUserId) {
+        stopAutoRefresh();
+        loadSignalHistory();
+        lastAccountInfo = null;
+      }
+      void loadStatus();
+    });
   }
   $("connectBtn").addEventListener("click", async () => {
     $("connectBtn").disabled = true;
