@@ -111,13 +111,13 @@ function randomState(): string {
 function normalizeSymbol(value: string) {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
-async function exchangeToken(params: Record<string, string>) {
+async function exchangeToken(params: Record<string, string>, method: "GET" | "POST" = "GET") {
   const { clientId, clientSecret } = requireSecrets();
   const url = new URL("https://openapi.ctrader.com/apps/token");
   for (const [key, value] of Object.entries({ ...params, client_id: clientId, client_secret: clientSecret })) {
     url.searchParams.set(key, value);
   }
-  const response = await fetch(url, { headers: { accept: "application/json" } });
+  const response = await fetch(url, { method, headers: { accept: "application/json" } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body.accessToken || !body.refreshToken) {
     // Deliberately avoid echoing token endpoint URLs, query parameters, or secrets.
@@ -211,7 +211,7 @@ async function ensureFreshTokens(admin: ReturnType<typeof createClient>, userId:
     return { accessToken: await decryptToken(row.access_token_ciphertext, keyText), row };
   }
   const refreshToken = await decryptToken(row.refresh_token_ciphertext, keyText);
-  const token = await exchangeToken({ grant_type: "refresh_token", refresh_token: refreshToken });
+  const token = await exchangeToken({ grant_type: "refresh_token", refresh_token: refreshToken }, "POST");
   const now = new Date();
   const accessCipher = await encryptToken(token.accessToken, keyText);
   const refreshCipher = await encryptToken(token.refreshToken, keyText);
