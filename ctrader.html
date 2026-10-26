@@ -88,10 +88,25 @@
 <h2>Market data test</h2>
 <p class="ct-muted">Requests historical candles from the cTrader demo API. Use the same symbol name shown in your Pepperstone cTrader platform.</p>
 <label class="ct-field" for="symbolInput">Symbol / pair</label>
-<input id="symbolInput" class="ct-input" maxlength="16" value="EUR/USD" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="EUR/USD">
+<input id="symbolInput" list="symbolSuggestions" class="ct-input" maxlength="16" value="EUR/USD" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="EUR/USD">
+<datalist id="symbolSuggestions">
+  <option value="EUR/USD"><option value="GBP/USD"><option value="AUD/USD"><option value="NZD/USD">
+  <option value="USD/JPY"><option value="USD/CHF"><option value="USD/CAD"><option value="EUR/JPY">
+  <option value="GBP/JPY"><option value="EUR/GBP"><option value="XAU/USD"><option value="XAG/USD">
+</datalist>
+<p class="ct-muted">Suggestions are common names only. Availability and exact spelling depend on your connected broker account.</p>
+<div class="ct-row"><button id="loadSymbolsBtn" class="btn outline" type="button" disabled>Load available broker symbols</button></div>
+<div id="symbolsStatus" class="ct-status" role="status" aria-live="polite">Load symbols to see the exact names available on your demo account.</div>
 <label class="ct-field" for="timeframeSelect">Candle timeframe</label>
 <select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option></select>
 <div class="ct-row"><button id="marketBtn" class="btn primary" type="button" disabled>Fetch demo candles</button><button id="csvBtn" class="btn outline" type="button" disabled>Export candles CSV</button></div>
+<div class="ct-row">
+  <label style="flex:1;min-width:150px"><span class="ct-field">Auto-refresh interval</span>
+    <select id="refreshInterval" class="ct-select"><option value="60">Every 1 minute</option><option value="300">Every 5 minutes</option><option value="900">Every 15 minutes</option></select>
+  </label>
+</div>
+<div class="ct-row"><button id="startRefreshBtn" class="btn outline" type="button" disabled>Start auto-refresh</button><button id="stopRefreshBtn" class="btn outline" type="button" disabled>Stop auto-refresh</button></div>
+<div id="autoRefreshStatus" class="ct-status" role="status" aria-live="polite">Auto-refresh is off.</div>
 <div id="marketStatus" class="ct-status" role="status" aria-live="polite">No cTrader candles fetched yet.</div>
 <div class="ct-info">
 <div class="ct-metric"><span>Source</span><strong>cTrader API</strong></div>
@@ -129,6 +144,39 @@
   <ul id="signalReasons" class="ct-muted"><li>No analysis has been run.</li></ul>
   <p class="ct-foot">Signals are based only on the retrieved candle history. They can be wrong, do not account for spreads or news, and are not financial advice. No automatic order placement is available.</p>
 </section>
+
+<section class="ct-grid" style="margin-top:16px">
+  <div class="ct-card">
+    <h2>Signal history</h2>
+    <p class="ct-muted">Recent analysis events are saved locally in this browser for this signed-in ScalpingBot user. Auto-refresh avoids duplicate entries for the same candle.</p>
+    <div class="ct-row"><button id="clearHistoryBtn" class="btn outline" type="button">Clear signal history</button></div>
+    <div class="ct-tablewrap"><table class="ct-table" style="min-width:560px"><thead><tr><th>Time (UTC)</th><th>Pair</th><th>TF</th><th>Signal</th><th>Close</th><th>RSI</th></tr></thead><tbody id="signalHistoryBody"><tr><td colspan="6">No signal history yet.</td></tr></tbody></table></div>
+    <p class="ct-foot">History is browser-local, not synced to Supabase or other devices. Up to 100 records are kept.</p>
+  </div>
+  <div class="ct-card">
+    <h2>Read-only risk calculator</h2>
+    <p class="ct-muted">Estimate risk amount, stop distance and reward-to-risk before any manual decision. This tool does not place orders.</p>
+    <div class="ct-info">
+      <div class="ct-metric"><span>Account balance</span><strong id="riskAccountInfo">Load account info above</strong></div>
+      <div class="ct-metric"><span>Account currency</span><strong id="riskCurrency">—</strong></div>
+    </div>
+    <label class="ct-field" for="riskBalance">Account balance</label><input id="riskBalance" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Read account info first">
+    <label class="ct-field" for="riskPercent">Risk percentage (%)</label><input id="riskPercent" class="ct-input" type="number" min="0.01" max="100" step="0.1" value="1" inputmode="decimal">
+    <label class="ct-field" for="riskDirection">Hypothetical direction</label><select id="riskDirection" class="ct-select"><option value="LONG">Buy / Long</option><option value="SHORT">Sell / Short</option></select>
+    <label class="ct-field" for="riskEntry">Entry price</label><input id="riskEntry" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Auto-filled from latest close">
+    <label class="ct-field" for="riskStop">Stop-loss price</label><input id="riskStop" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter stop-loss price">
+    <label class="ct-field" for="riskTarget">Take-profit price (optional)</label><input id="riskTarget" class="ct-input" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter take-profit price">
+    <div id="riskStatus" class="ct-status warn" role="status" aria-live="polite">Read account info and enter entry and stop-loss prices.</div>
+    <div class="ct-info">
+      <div class="ct-metric"><span>Risk amount</span><strong id="riskAmount">—</strong></div>
+      <div class="ct-metric"><span>Stop distance</span><strong id="riskDistance">—</strong></div>
+      <div class="ct-metric"><span>Reward / risk</span><strong id="riskReward">—</strong></div>
+      <div class="ct-metric"><span>Estimated FX units</span><strong id="riskUnits">—</strong></div>
+    </div>
+    <p class="ct-foot">FX units are estimated only when the symbol is a six-letter FX pair and its quote currency matches the account currency. Metals, CFDs, and currency-converted pairs do not get a unit estimate because broker contract sizes and conversions must be verified. This is not an order ticket or financial advice.</p>
+  </div>
+</section>
+
 <p class="ct-foot">Security: Client Secret, access tokens, and refresh tokens stay on the Supabase backend. The browser never receives the cTrader tokens. “Remove saved connection” deletes the encrypted token records in ScalpingBot; to revoke app access entirely, use cTrader ID / Open API application settings. Trading is disabled in this integration.</p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -142,6 +190,14 @@
   let session = null;
   let linkedAccounts = [];
   let lastCandles = [];
+  let lastMarketMeta = { symbol: "EUR/USD", timeframe: "M1", retrievedAt: null };
+  let autoRefreshTimer = null;
+  let isFetchingCandles = false;
+  let isLoadingSymbols = false;
+  let availableSymbols = [];
+  let lastAccountInfo = null;
+  let storedSignalHistory = [];
+  const historyStorageKey = () => "scalpingbot_ctrader_signal_history_" + (session?.user?.id || "local");
   const setStatus = (id, message, tone = "") => {
     $(id).textContent = message;
     $(id).className = "ct-status" + (tone ? " " + tone : "");
@@ -173,10 +229,62 @@
     $("refreshBtn").disabled = !hasSession;
     $("accountSelect").disabled = !linkedAccounts.length;
     $("accountBtn").disabled = !hasSession || !hasAccount;
-    $("marketBtn").disabled = !hasSession || !hasAccount;
+    $("marketBtn").disabled = !hasSession || !hasAccount || isFetchingCandles;
+    $("loadSymbolsBtn").disabled = !hasSession || !hasAccount || isLoadingSymbols;
     $("disconnectBtn").disabled = !hasSession || !hasAccount;
     $("csvBtn").disabled = !lastCandles.length;
     $("analyzeBtn").disabled = lastCandles.length < 25;
+    $("startRefreshBtn").disabled = !hasSession || !hasAccount || Boolean(autoRefreshTimer);
+    $("stopRefreshBtn").disabled = !autoRefreshTimer;
+  }
+  function loadSignalHistory() {
+    try {
+      const raw = localStorage.getItem(historyStorageKey());
+      storedSignalHistory = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(storedSignalHistory)) storedSignalHistory = [];
+    } catch { storedSignalHistory = []; }
+    renderSignalHistory();
+  }
+  function renderSignalHistory() {
+    const body = $("signalHistoryBody");
+    if (!body) return;
+    body.replaceChildren();
+    if (!storedSignalHistory.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td"); td.colSpan = 6; td.textContent = "No signal history yet.";
+      tr.appendChild(td); body.appendChild(tr); return;
+    }
+    for (const item of storedSignalHistory.slice(0, 20)) {
+      const tr = document.createElement("tr");
+      const vals = [String(item.timestamp || "").replace("T", " ").slice(0, 19), item.symbol, item.timeframe, item.signal, Number(item.close).toFixed(5), Number(item.rsi).toFixed(1)];
+      for (const val of vals) { const td = document.createElement("td"); td.textContent = val ?? ""; tr.appendChild(td); }
+      body.appendChild(tr);
+    }
+  }
+  function saveSignalHistory(entry) {
+    const duplicate = storedSignalHistory.some(x => x.symbol === entry.symbol && x.timeframe === entry.timeframe && Number(x.candleTime) === Number(entry.candleTime));
+    if (duplicate) return;
+    storedSignalHistory.unshift(entry);
+    storedSignalHistory = storedSignalHistory.slice(0, 100);
+    try { localStorage.setItem(historyStorageKey(), JSON.stringify(storedSignalHistory)); } catch { /* browser storage can be disabled */ }
+    renderSignalHistory();
+  }
+  function stopAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+    setStatus("autoRefreshStatus", "Auto-refresh is off.");
+    syncButtons();
+  }
+  function startAutoRefresh() {
+    if (autoRefreshTimer || !session?.access_token || !selectedAccount()) return;
+    const seconds = Math.max(60, Number($("refreshInterval").value) || 60);
+    setStatus("autoRefreshStatus", "Auto-refresh active · every " + (seconds / 60) + " minute(s). It pauses while this page is hidden.");
+    autoRefreshTimer = setInterval(() => {
+      if (document.hidden || isFetchingCandles) return;
+      void fetchCandles({ automatic: true });
+    }, seconds * 1000);
+    syncButtons();
+    void fetchCandles({ automatic: true });
   }
   function renderAccounts(accounts) {
     linkedAccounts = Array.isArray(accounts) ? accounts : [];
@@ -221,10 +329,11 @@
     });
     const { data } = await client.auth.getSession();
     session = data.session;
+    loadSignalHistory();
     if (session) setStatus("mainStatus", "Signed in as " + (session.user.email || "ScalpingBot user") + ". Checking cTrader connection…", "good");
     else setStatus("mainStatus", "You are not signed in. Sign in to ScalpingBot first; this page will not ask for your cTrader password.", "warn");
     await loadStatus();
-    client.auth.onAuthStateChange((_event, newSession) => { session = newSession; void loadStatus(); });
+    client.auth.onAuthStateChange((_event, newSession) => { stopAutoRefresh(); session = newSession; loadSignalHistory(); lastAccountInfo = null; void loadStatus(); });
   }
   $("connectBtn").addEventListener("click", async () => {
     $("connectBtn").disabled = true;
@@ -250,22 +359,54 @@
       $("leverageMetric").textContent = account.leverage == null ? "—" : "1:" + account.leverage;
       $("typeMetric").textContent = account.accountType || "Demo";
       $("currencyMetric").textContent = account.currency || "Unknown";
+      lastAccountInfo = account;
+      $("riskCurrency").textContent = account.currency || "Unknown";
+      $("riskAccountInfo").textContent = account.balance == null ? "Unavailable" : Number(account.balance).toLocaleString("en-US", { maximumFractionDigits: 2 });
+      $("riskBalance").value = account.balance == null ? "" : String(account.balance);
+      updateRiskCalculator();
       $("accountMetrics").classList.remove("ct-hidden");
       setStatus("accountStatus", "Account information verified from Pepperstone cTrader demo. Read-only access; no order operations were requested.", "good");
     } catch (error) {
       setStatus("accountStatus", error.message || "Could not read account information.", "bad");
     } finally { syncButtons(); }
   });
-  $("marketBtn").addEventListener("click", async () => {
-    $("marketBtn").disabled = true;
-    setStatus("marketStatus", "Requesting historical demo candles…");
+  async function loadAvailableSymbols() {
+    if (isLoadingSymbols || !session?.access_token || !selectedAccount()) return;
+    isLoadingSymbols = true;
+    syncButtons();
+    setStatus("symbolsStatus", "Loading symbols from the connected cTrader demo account…");
+    try {
+      const result = await api("symbols", { accountId: selectedAccount() });
+      availableSymbols = Array.isArray(result.symbols) ? result.symbols : [];
+      const list = $("symbolSuggestions");
+      list.replaceChildren();
+      for (const item of availableSymbols) {
+        const option = document.createElement("option");
+        option.value = item.name;
+        list.appendChild(option);
+      }
+      setStatus("symbolsStatus", "Loaded " + availableSymbols.length + " symbol(s) available on this demo account. Tap the symbol field and choose the exact broker name.", "good");
+    } catch (error) {
+      setStatus("symbolsStatus", error.message || "Could not load the broker symbol list.", "bad");
+    } finally {
+      isLoadingSymbols = false;
+      syncButtons();
+    }
+  }
+  $("loadSymbolsBtn").addEventListener("click", () => void loadAvailableSymbols());
+  async function fetchCandles({ automatic = false } = {}) {
+    if (isFetchingCandles || !session?.access_token || !selectedAccount()) return;
+    isFetchingCandles = true;
+    syncButtons();
+    if (!automatic) setStatus("marketStatus", "Requesting historical demo candles…");
     try {
       const symbol = $("symbolInput").value.trim();
       const timeframe = $("timeframeSelect").value;
       const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 100 });
       const market = result.market;
       lastCandles = market.candles || [];
-      $("retrievedMetric").textContent = new Date(market.retrievedAt).toLocaleTimeString();
+      lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString() };
+      $("retrievedMetric").textContent = new Date(lastMarketMeta.retrievedAt).toLocaleTimeString();
       const body = $("candlesBody");
       body.replaceChildren();
       for (const candle of lastCandles.slice(-15).reverse()) {
@@ -278,13 +419,46 @@
         for (const value of values) { const td = document.createElement("td"); td.textContent = value; tr.appendChild(td); }
         body.appendChild(tr);
       }
-      setStatus("marketStatus", "Received " + lastCandles.length + " candles for " + market.symbol + " (" + timeframe + ") from the cTrader demo API.", "good");
+      setStatus("marketStatus", "Received " + lastCandles.length + " candles for " + lastMarketMeta.symbol + " (" + timeframe + ") from the cTrader demo API." + (automatic ? " Auto-refresh updated the data." : ""), "good");
       drawCandlestickChart();
+      if (lastCandles.length && (!$("riskEntry").value || $("riskEntry").dataset.autofill === "true")) {
+        $("riskEntry").value = String(Number(lastCandles[lastCandles.length - 1].close));
+        $("riskEntry").dataset.autofill = "true";
+      }
+      analyzeCandles({ record: true, quiet: true });
+      updateRiskCalculator();
+      if (autoRefreshTimer) setStatus("autoRefreshStatus", "Auto-refresh active · every " + (Number($("refreshInterval").value) / 60) + " minute(s). Last refresh: " + new Date().toLocaleTimeString() + ".");
     } catch (error) {
       setStatus("marketStatus", error.message || "Could not fetch cTrader candles.", "bad");
-    } finally { syncButtons(); }
+      if (autoRefreshTimer) setStatus("autoRefreshStatus", "Auto-refresh is active, but the latest request failed: " + (error.message || "unknown error"));
+    } finally {
+      isFetchingCandles = false;
+      syncButtons();
+    }
+  }
+  $("marketBtn").addEventListener("click", () => void fetchCandles());
+  $("startRefreshBtn").addEventListener("click", startAutoRefresh);
+  $("stopRefreshBtn").addEventListener("click", stopAutoRefresh);
+  $("accountSelect").addEventListener("change", () => {
+    stopAutoRefresh();
+    lastAccountInfo = null;
+    availableSymbols = [];
+    const list = $("symbolSuggestions");
+    list.replaceChildren();
+    for (const name of ["EUR/USD","GBP/USD","AUD/USD","NZD/USD","USD/JPY","USD/CHF","USD/CAD","EUR/JPY","GBP/JPY","EUR/GBP","XAU/USD","XAG/USD"]) {
+      const option = document.createElement("option"); option.value = name; list.appendChild(option);
+    }
+    setStatus("symbolsStatus", "Load symbols to see the exact names available on the selected demo account.");
+    $("riskCurrency").textContent = "Read account info";
+    $("riskAccountInfo").textContent = "Load account info above";
+    $("riskBalance").value = "";
+    updateRiskCalculator();
   });
-
+  $("symbolInput").addEventListener("change", () => { if (autoRefreshTimer) setStatus("autoRefreshStatus", "Symbol changed. Auto-refresh will use " + $("symbolInput").value.trim() + " at the selected interval."); });
+  $("timeframeSelect").addEventListener("change", () => { if (autoRefreshTimer) setStatus("autoRefreshStatus", "Timeframe changed. Auto-refresh will use " + $("timeframeSelect").value + "."); });
+  $("refreshInterval").addEventListener("change", () => {
+    if (autoRefreshTimer) { stopAutoRefresh(); startAutoRefresh(); }
+  });
 
   function drawCandlestickChart() {
     const canvas = $("candleChart");
@@ -375,11 +549,11 @@
     if (avgLoss === 0) return avgGain === 0 ? 50 : 100;
     return 100 - (100 / (1 + avgGain / avgLoss));
   }
-  $("analyzeBtn").addEventListener("click", () => {
+  function analyzeCandles({ record = true, quiet = false } = {}) {
     const closes = lastCandles.map(c => Number(c.close)).filter(Number.isFinite);
     if (closes.length < 25) {
-      setStatus("signalStatus", "Fetch at least 25 valid candles before analysis.", "warn");
-      return;
+      if (!quiet) setStatus("signalStatus", "Fetch at least 25 valid candles before analysis.", "warn");
+      return null;
     }
     const ema9 = ema(closes.slice(-Math.min(closes.length, 60)), 9);
     const ema21 = ema(closes.slice(-Math.min(closes.length, 100)), 21);
@@ -414,6 +588,63 @@
     for (const reason of reasons) { const li = document.createElement("li"); li.textContent = reason; list.appendChild(li); }
     $("signalMetrics").classList.remove("ct-hidden");
     setStatus("signalStatus", signal + " signal generated from " + closes.length + " retrieved candles. This is an indicator-based observation, not a guaranteed outcome.", signal === "NEUTRAL" ? "warn" : "good");
+    const candleTime = Number(lastCandles[lastCandles.length - 1].time);
+    const result = { signal, symbol: lastMarketMeta.symbol || $("symbolInput").value.trim(), timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value, candleTime, close: current, ema9, ema21, rsi: rsi14, reasons, timestamp: new Date().toISOString() };
+    if (record) saveSignalHistory(result);
+    return result;
+  }
+  $("analyzeBtn").addEventListener("click", () => { analyzeCandles({ record: true, quiet: false }); });
+
+  function updateRiskCalculator() {
+    const balance = Number($("riskBalance").value);
+    const percent = Number($("riskPercent").value);
+    const entry = Number($("riskEntry").value);
+    const stop = Number($("riskStop").value);
+    const targetRaw = $("riskTarget").value.trim();
+    const target = Number(targetRaw);
+    const validBalance = Number.isFinite(balance) && balance > 0;
+    const validPercent = Number.isFinite(percent) && percent > 0 && percent <= 100;
+    const validPrices = Number.isFinite(entry) && entry > 0 && Number.isFinite(stop) && stop > 0 && entry !== stop;
+    const direction = $("riskDirection").value;
+    const stopOnCorrectSide = direction === "LONG" ? stop < entry : stop > entry;
+    const targetOnCorrectSide = !targetRaw || !Number.isFinite(target) || target <= 0 || (direction === "LONG" ? target > entry : target < entry);
+    $("riskAmount").textContent = "—"; $("riskDistance").textContent = "—"; $("riskReward").textContent = "—"; $("riskUnits").textContent = "—";
+    if (!validBalance || !validPercent || !validPrices || !stopOnCorrectSide || !targetOnCorrectSide) {
+      setStatus("riskStatus", !stopOnCorrectSide || !targetOnCorrectSide
+        ? "Check the selected direction: a Long needs stop below entry and target above entry; a Short needs stop above entry and target below entry."
+        : "Enter a positive balance, risk percentage, entry price and a different stop-loss price.", "warn");
+      return;
+    }
+    const riskAmount = balance * percent / 100;
+    const distance = Math.abs(entry - stop);
+    $("riskAmount").textContent = riskAmount.toLocaleString("en-US", { maximumFractionDigits: 2 }) + (lastAccountInfo?.currency ? " " + lastAccountInfo.currency : "");
+    $("riskDistance").textContent = distance.toPrecision(6);
+    let rrText = "Add take-profit";
+    if (targetRaw && Number.isFinite(target) && target > 0 && target !== entry) rrText = (Math.abs(target - entry) / distance).toFixed(2) + " : 1";
+    $("riskReward").textContent = rrText;
+    const normalized = $("symbolInput").value.toUpperCase().replace(/[^A-Z]/g, "");
+    const quote = normalized.length === 6 ? normalized.slice(3) : "";
+    const accountCurrency = String(lastAccountInfo?.currency || "").toUpperCase();
+    const plainFxPair = normalized.length === 6 && /^[A-Z]{6}$/.test(normalized) && !normalized.startsWith("XAU") && !normalized.startsWith("XAG");
+    if (plainFxPair && quote && accountCurrency && quote === accountCurrency) {
+      $("riskUnits").textContent = Math.floor(riskAmount / distance).toLocaleString("en-US") + " units*";
+      setStatus("riskStatus", "Risk estimate calculated. The FX unit figure is a mathematical estimate only; broker margin, spreads, commissions and slippage are not included.", "good");
+    } else {
+      $("riskUnits").textContent = "Not estimated";
+      setStatus("riskStatus", "Risk amount and distance calculated. Position units are omitted because the symbol/account currency or contract specifications need broker-specific conversion.", "warn");
+    }
+  }
+  ["riskBalance","riskPercent","riskEntry","riskStop","riskTarget","riskDirection"].forEach(id => {
+    $(id).addEventListener("input", () => {
+      if (id === "riskEntry") $(id).dataset.autofill = "false";
+      updateRiskCalculator();
+    });
+  });
+  $("clearHistoryBtn").addEventListener("click", () => {
+    if (!confirm("Clear the signal history saved in this browser for this ScalpingBot account?")) return;
+    storedSignalHistory = [];
+    try { localStorage.removeItem(historyStorageKey()); } catch { /* storage can be disabled */ }
+    renderSignalHistory();
   });
 
   $("disconnectBtn").addEventListener("click", async () => {
