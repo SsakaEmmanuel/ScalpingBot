@@ -4,11 +4,19 @@ on:
   push:
     paths:
       - "pocket-signals.html"
+      - "ctrader.html"
+      - "supabase/functions/ctrader-connect/index.ts"
+      - "supabase/migrations/**"
+      - "tests/check-ctrader.mjs"
       - "tests/check-pocket-signals.mjs"
       - ".github/workflows/pocket-signals-check.yml"
   pull_request:
     paths:
       - "pocket-signals.html"
+      - "ctrader.html"
+      - "supabase/functions/ctrader-connect/index.ts"
+      - "supabase/migrations/**"
+      - "tests/check-ctrader.mjs"
       - "tests/check-pocket-signals.mjs"
       - ".github/workflows/pocket-signals-check.yml"
 
@@ -27,3 +35,5 @@ jobs:
           node-version: 20
       - name: Validate Pocket Signals page
         run: node tests/check-pocket-signals.mjs
+      - name: Validate cTrader integration
+        run: node tests/check-ctrader.mjs
