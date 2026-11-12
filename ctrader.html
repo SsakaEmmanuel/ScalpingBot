@@ -701,11 +701,19 @@
       updateRiskCalculator();
     });
   });
-  $("clearHistoryBtn").addEventListener("click", () => {
-    if (!confirm("Clear the signal history saved in this browser for this ScalpingBot account?")) return;
+  $("clearHistoryBtn").addEventListener("click", async () => {
+    if (!confirm("Permanently clear this ScalpingBot account's saved signal history from the cloud and this browser?")) return;
+    if (client && session?.user?.id) {
+      const { error } = await client.from("signal_history").delete().eq("user_id", session.user.id);
+      if (error) {
+        alert("Cloud history was not cleared. The database migration may not be installed yet. " + error.message);
+        return;
+      }
+    }
     storedSignalHistory = [];
     try { localStorage.removeItem(historyStorageKey()); } catch { /* storage can be disabled */ }
     renderSignalHistory();
+    setStatus("signalStatus", "Signal history cleared for this signed-in account.", "good");
   });
 
   $("disconnectBtn").addEventListener("click", async () => {
