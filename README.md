@@ -74,11 +74,12 @@ The upgrade/scalpingbot-2.0 branch adds a deterministic, read-only analysis engi
 - Fetches M1/M5/M15/M30/H1 analysis candles plus H4 context as needed, using one shared snapshot timestamp so timeframe comparisons are aligned.
 - Combines EMA trend alignment, 3-candle momentum, RSI(14), ATR(14), recent 12-candle range structure, wick sweeps and breakout context.
 - Returns BUY, SELL or WAIT with a rule-confluence score, explanation and a structure-based invalidation reference. The score is not a win probability.
+- Cost-aware historical backtesting with next-candle entries, ATR-based stop/target simulation, configurable spread/commission/slippage, conservative same-candle stop handling, win rate, profit factor, expectancy and drawdown.
 - Adds a private Supabase signal_history migration. Authenticated users can insert and read only their own journal rows; duplicate candle records are rejected by a unique constraint.
 - Keeps browser-local history as a convenience cache. No order placement or live execution is introduced.
 
 ### Validate the preview
 
-Run node tests/check-v2-engine.mjs and node tests/check-ctrader.mjs with Node.js 20+. The v2 workflow runs both checks on relevant pushes and pull requests.
+Run node tests/check-v2-engine.mjs, node tests/check-v2-backtest.mjs and node tests/check-ctrader.mjs with Node.js 20+. The v2 workflow runs all three checks on relevant pushes and pull requests.
 
 The additive migration is in supabase/migrations/20261112212508_add_signal_history_v2.sql and has been applied to the linked ScalpingBot Supabase project. It creates only the new signal_history table and its per-user RLS policies; existing cTrader token storage and trade tables are unchanged.
