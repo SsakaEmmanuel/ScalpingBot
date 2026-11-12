@@ -5,7 +5,9 @@ on:
     paths:
       - "ctrader.html"
       - "scalpingbot-v2-engine.js"
+      - "scalpingbot-v2-backtest.js"
       - "tests/check-v2-engine.mjs"
+      - "tests/check-v2-backtest.mjs"
       - "supabase/functions/ctrader-connect/index.ts"
       - "supabase/migrations/**"
       - ".github/workflows/scalpingbot-v2-checks.yml"
@@ -24,4 +26,5 @@ jobs:
         with:
           node-version: 20
       - run: node tests/check-v2-engine.mjs
+      - run: node tests/check-v2-backtest.mjs
       - run: node tests/check-ctrader.mjs
