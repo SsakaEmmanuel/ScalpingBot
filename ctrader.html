@@ -369,6 +369,7 @@
     const { data } = await client.auth.getSession();
     session = data.session;
     loadSignalHistory();
+    void loadRemoteSignalHistory();
     if (session) setStatus("mainStatus", "Signed in as " + (session.user.email || "ScalpingBot user") + ". Checking cTrader connection…", "good");
     else setStatus("mainStatus", "You are not signed in. Sign in to ScalpingBot first; this page will not ask for your cTrader password.", "warn");
     await loadStatus();
@@ -379,6 +380,7 @@
       if (previousUserId !== nextUserId) {
         stopAutoRefresh();
         loadSignalHistory();
+        void loadRemoteSignalHistory();
         lastAccountInfo = null;
       }
       void loadStatus();
