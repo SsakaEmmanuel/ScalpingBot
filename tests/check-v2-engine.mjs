@@ -43,6 +43,7 @@ const backend = readFileSync(new URL("../supabase/functions/ctrader-connect/inde
 assert.match(backend, /M30:\s*8/, "cTrader M30 period enum must match the official API");
 assert.match(backend, /H1:\s*9/, "cTrader H1 period enum must match the official API");
 assert.match(backend, /H4:\s*10/, "cTrader H4 period enum must match the official API");
+assert.match(backend, /H4:\s*10/, "cTrader H4 period enum must match the official API");
 assert.match(backend, /toTimestamp: safeSnapshotTime/, "All requested timeframes must use the shared snapshot timestamp");
 assert.match(html, /snapshotTime/, "The cTrader page must send and use a shared snapshot timestamp");
 assert.match(html, /contextCandles\[contextTf\]/, "Page must retrieve higher timeframe context");
