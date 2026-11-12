@@ -146,6 +146,38 @@
   <p class="ct-foot">Signals are based only on the retrieved candle history. They can be wrong, do not account for spreads or news, and are not financial advice. No automatic order placement is available.</p>
 </section>
 
+<section class="ct-card" style="margin-top:16px">
+  <h2>Historical backtest (read-only)</h2>
+  <p class="ct-muted">Tests the current timeframe against later candles only. Entry is the next candle open; exits use ATR-based stop/target or a maximum holding period. This is a research simulation, not broker execution.</p>
+  <div class="ct-grid">
+    <div>
+      <label class="ct-field" for="btSpread">Round-trip spread cost (price units)</label>
+      <input id="btSpread" class="ct-input" type="number" min="0" step="any" value="0" inputmode="decimal">
+      <label class="ct-field" for="btCommission">Round-trip commission (price units)</label>
+      <input id="btCommission" class="ct-input" type="number" min="0" step="any" value="0" inputmode="decimal">
+      <label class="ct-field" for="btSlippage">Slippage per side (price units)</label>
+      <input id="btSlippage" class="ct-input" type="number" min="0" step="any" value="0" inputmode="decimal">
+      <label class="ct-field" for="btHoldBars">Maximum holding candles</label>
+      <input id="btHoldBars" class="ct-input" type="number" min="1" max="200" step="1" value="20" inputmode="numeric">
+      <div class="ct-row"><button id="runBacktestBtn" class="btn primary" type="button" disabled>Run historical backtest</button></div>
+      <div id="backtestStatus" class="ct-status warn" role="status" aria-live="polite">Fetch at least 80 candles to run the backtest.</div>
+    </div>
+    <div>
+      <div class="ct-info">
+        <div class="ct-metric"><span>Trades</span><strong id="btTrades">—</strong></div>
+        <div class="ct-metric"><span>Win rate</span><strong id="btWinRate">—</strong></div>
+        <div class="ct-metric"><span>Profit factor</span><strong id="btProfitFactor">—</strong></div>
+        <div class="ct-metric"><span>Expectancy / trade</span><strong id="btExpectancy">—</strong></div>
+        <div class="ct-metric"><span>Net result</span><strong id="btNet">—</strong></div>
+        <div class="ct-metric"><span>Max drawdown (R)</span><strong id="btDrawdown">—</strong></div>
+      </div>
+    </div>
+  </div>
+  <h3 style="margin-top:16px">Recent simulated trades</h3>
+  <div class="ct-tablewrap"><table class="ct-table"><thead><tr><th>Direction</th><th>Entry</th><th>Exit</th><th>Reason</th><th>Net</th><th>R</th></tr></thead><tbody id="backtestRows"><tr><td colspan="6">No backtest run yet.</td></tr></tbody></table></div>
+  <p class="ct-foot">Enter realistic costs in the symbol's price units. Spread is charged once per round trip, commission as round-trip cost, and slippage on both sides. If stop and target are touched in the same candle, the simulation assumes the stop occurred first. No multi-timeframe context is used in this historical test yet.</p>
+</section>
+
 <section class="ct-grid" style="margin-top:16px">
   <div class="ct-card">
     <h2>Signal history</h2>
@@ -183,6 +215,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="scalpingbot-v2-engine.js?v=2.0.0"></script>
+<script src="scalpingbot-v2-backtest.js?v=2.0.0"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -236,7 +269,8 @@
     $("loadSymbolsBtn").disabled = !hasSession || !hasAccount || isLoadingSymbols;
     $("disconnectBtn").disabled = !hasSession || !hasAccount;
     $("csvBtn").disabled = !lastCandles.length;
-    $("analyzeBtn").disabled = lastCandles.length < 25;
+    $("analyzeBtn").disabled = lastCandles.length < 40;
+    $("runBacktestBtn").disabled = lastCandles.length < 80;
     $("startRefreshBtn").disabled = !hasSession || !hasAccount || Boolean(autoRefreshTimer);
     $("stopRefreshBtn").disabled = !autoRefreshTimer;
   }
@@ -655,6 +689,45 @@
     if (record) saveSignalHistory(result);
     return result;
   }
+  $("runBacktestBtn").addEventListener("click", () => {
+    if (!window.ScalpingBotBacktest?.run) {
+      setStatus("backtestStatus", "The backtest module did not load. Refresh and try again.", "bad");
+      return;
+    }
+    try {
+      const result = window.ScalpingBotBacktest.run(lastCandles, {
+        timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value,
+        spread: Number($("btSpread").value),
+        commission: Number($("btCommission").value),
+        slippage: Number($("btSlippage").value),
+        maxHoldBars: Number($("btHoldBars").value),
+        riskAtr: 1.5,
+        rewardRisk: 2
+      });
+      $("btTrades").textContent = String(result.tradeCount);
+      $("btWinRate").textContent = result.winRate.toFixed(1) + "%";
+      $("btProfitFactor").textContent = result.profitFactor == null ? "∞" : result.profitFactor.toFixed(2);
+      $("btExpectancy").textContent = result.expectancy.toPrecision(5);
+      $("btNet").textContent = result.netTotal.toPrecision(6);
+      $("btDrawdown").textContent = result.maxDrawdownR.toFixed(2) + "R";
+      const body = $("backtestRows");
+      body.replaceChildren();
+      for (const trade of result.trades.slice(-15).reverse()) {
+        const tr = document.createElement("tr");
+        const vals = [trade.direction, Number(trade.entry).toPrecision(6), Number(trade.exit).toPrecision(6), trade.exitReason, Number(trade.net).toPrecision(5), Number(trade.netR).toFixed(2)];
+        for (const value of vals) { const td = document.createElement("td"); td.textContent = value; tr.appendChild(td); }
+        body.appendChild(tr);
+      }
+      if (!result.trades.length) {
+        const tr = document.createElement("tr"), td = document.createElement("td");
+        td.colSpan = 6; td.textContent = "No qualifying BUY/SELL setups were found in this candle sample.";
+        tr.appendChild(td); body.appendChild(tr);
+      }
+      setStatus("backtestStatus", "Completed " + result.tradeCount + " non-overlapping historical trade(s). Net result and metrics include the entered costs. No broker orders were sent.", "good");
+    } catch (error) {
+      setStatus("backtestStatus", error.message || "Backtest failed.", "bad");
+    }
+  });
   $("analyzeBtn").addEventListener("click", () => { analyzeCandles({ record: true, quiet: false }); });
 
   function updateRiskCalculator() {
