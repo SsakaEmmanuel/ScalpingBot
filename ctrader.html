@@ -98,7 +98,7 @@
 <div class="ct-row"><button id="loadSymbolsBtn" class="btn outline" type="button" disabled>Load available broker symbols</button></div>
 <div id="symbolsStatus" class="ct-status" role="status" aria-live="polite">Load symbols to see the exact names available on your demo account.</div>
 <label class="ct-field" for="timeframeSelect">Candle timeframe</label>
-<select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option></select>
+<select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option><option value="M30">30 minutes (M30)</option><option value="H1">1 hour (H1)</option></select>
 <div class="ct-row"><button id="marketBtn" class="btn primary" type="button" disabled>Fetch demo candles</button><button id="csvBtn" class="btn outline" type="button" disabled>Export candles CSV</button></div>
 <div class="ct-row">
   <label style="flex:1;min-width:150px"><span class="ct-field">Auto-refresh interval</span>
@@ -108,6 +108,7 @@
 <div class="ct-row"><button id="startRefreshBtn" class="btn outline" type="button" disabled>Start auto-refresh</button><button id="stopRefreshBtn" class="btn outline" type="button" disabled>Stop auto-refresh</button></div>
 <div id="autoRefreshStatus" class="ct-status" role="status" aria-live="polite">Auto-refresh is off.</div>
 <div id="marketStatus" class="ct-status" role="status" aria-live="polite">No cTrader candles fetched yet.</div>
+<div id="contextStatus" class="ct-status warn" role="status" aria-live="polite">Higher-timeframe context has not been fetched yet.</div>
 <div class="ct-info">
 <div class="ct-metric"><span>Source</span><strong>cTrader API</strong></div>
 <div class="ct-metric"><span>Last retrieved</span><strong id="retrievedMetric">—</strong></div>
@@ -131,7 +132,7 @@
 
 <section class="ct-card" style="margin-top:16px">
   <h2>Candle signal analysis</h2>
-  <p class="ct-muted">Rule-based educational analysis of the most recently fetched demo candles. Uses EMA 9/21 and RSI 14. It does not place orders or predict outcomes.</p>
+  <p class="ct-muted">ScalpingBot 2.0 multi-factor analysis of completed demo candles. Combines trend, momentum, RSI, ATR volatility and recent market structure. It does not place orders or predict outcomes.</p>
   <div class="ct-row"><button id="analyzeBtn" class="btn primary" type="button" disabled>Analyze candles</button></div>
   <div id="signalStatus" class="ct-status warn" role="status" aria-live="polite">Fetch candle data first, then analyze it.</div>
   <div id="signalMetrics" class="ct-info ct-hidden">
@@ -145,13 +146,45 @@
   <p class="ct-foot">Signals are based only on the retrieved candle history. They can be wrong, do not account for spreads or news, and are not financial advice. No automatic order placement is available.</p>
 </section>
 
+<section class="ct-card" style="margin-top:16px">
+  <h2>Historical backtest (read-only)</h2>
+  <p class="ct-muted">Tests the current timeframe against later candles only. Entry is the next candle open; exits use ATR-based stop/target or a maximum holding period. This is a research simulation, not broker execution.</p>
+  <div class="ct-grid">
+    <div>
+      <label class="ct-field" for="btSpread">Round-trip spread cost (price units)</label>
+      <input id="btSpread" class="ct-input" type="number" min="0" step="any" value="0" inputmode="decimal">
+      <label class="ct-field" for="btCommission">Round-trip commission (price units)</label>
+      <input id="btCommission" class="ct-input" type="number" min="0" step="any" value="0" inputmode="decimal">
+      <label class="ct-field" for="btSlippage">Slippage per side (price units)</label>
+      <input id="btSlippage" class="ct-input" type="number" min="0" step="any" value="0" inputmode="decimal">
+      <label class="ct-field" for="btHoldBars">Maximum holding candles</label>
+      <input id="btHoldBars" class="ct-input" type="number" min="1" max="200" step="1" value="20" inputmode="numeric">
+      <div class="ct-row"><button id="runBacktestBtn" class="btn primary" type="button" disabled>Run historical backtest</button></div>
+      <div id="backtestStatus" class="ct-status warn" role="status" aria-live="polite">Fetch at least 80 candles to run the backtest.</div>
+    </div>
+    <div>
+      <div class="ct-info">
+        <div class="ct-metric"><span>Trades</span><strong id="btTrades">—</strong></div>
+        <div class="ct-metric"><span>Win rate</span><strong id="btWinRate">—</strong></div>
+        <div class="ct-metric"><span>Profit factor</span><strong id="btProfitFactor">—</strong></div>
+        <div class="ct-metric"><span>Expectancy / trade</span><strong id="btExpectancy">—</strong></div>
+        <div class="ct-metric"><span>Net result</span><strong id="btNet">—</strong></div>
+        <div class="ct-metric"><span>Max drawdown (R)</span><strong id="btDrawdown">—</strong></div>
+      </div>
+    </div>
+  </div>
+  <h3 style="margin-top:16px">Recent simulated trades</h3>
+  <div class="ct-tablewrap"><table class="ct-table"><thead><tr><th>Direction</th><th>Entry</th><th>Exit</th><th>Reason</th><th>Net</th><th>R</th></tr></thead><tbody id="backtestRows"><tr><td colspan="6">No backtest run yet.</td></tr></tbody></table></div>
+  <p class="ct-foot">Enter realistic costs in the symbol's price units. Spread is charged once per round trip, commission as round-trip cost, and slippage on both sides. If stop and target are touched in the same candle, the simulation assumes the stop occurred first. No multi-timeframe context is used in this historical test yet.</p>
+</section>
+
 <section class="ct-grid" style="margin-top:16px">
   <div class="ct-card">
     <h2>Signal history</h2>
-    <p class="ct-muted">Recent analysis events are saved locally in this browser for this signed-in ScalpingBot user. Auto-refresh avoids duplicate entries for the same candle.</p>
+    <p class="ct-muted">Recent analysis events are saved locally and synced to your signed-in ScalpingBot account. Auto-refresh avoids duplicate entries for the same candle.</p>
     <div class="ct-row"><button id="clearHistoryBtn" class="btn outline" type="button">Clear signal history</button></div>
     <div class="ct-tablewrap"><table class="ct-table" style="min-width:560px"><thead><tr><th>Time (UTC)</th><th>Pair</th><th>TF</th><th>Signal</th><th>Close</th><th>RSI</th></tr></thead><tbody id="signalHistoryBody"><tr><td colspan="6">No signal history yet.</td></tr></tbody></table></div>
-    <p class="ct-foot">History is browser-local, not synced to Supabase or other devices. Up to 100 records are kept.</p>
+    <p class="ct-foot">History is synced to Supabase per signed-in user and cached locally for convenience. Up to 100 recent records are displayed.</p>
   </div>
   <div class="ct-card">
     <h2>Read-only risk calculator</h2>
@@ -181,6 +214,8 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="scalpingbot-v2-engine.js?v=2.0.0"></script>
+<script src="scalpingbot-v2-backtest.js?v=2.0.0"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -190,6 +225,7 @@
   let session = null;
   let linkedAccounts = [];
   let lastCandles = [];
+  let contextCandles = {};
   let lastMarketMeta = { symbol: "EUR/USD", timeframe: "M1", retrievedAt: null };
   let autoRefreshTimer = null;
   let isFetchingCandles = false;
@@ -233,7 +269,8 @@
     $("loadSymbolsBtn").disabled = !hasSession || !hasAccount || isLoadingSymbols;
     $("disconnectBtn").disabled = !hasSession || !hasAccount;
     $("csvBtn").disabled = !lastCandles.length;
-    $("analyzeBtn").disabled = lastCandles.length < 25;
+    $("analyzeBtn").disabled = lastCandles.length < 40;
+    $("runBacktestBtn").disabled = lastCandles.length < 80;
     $("startRefreshBtn").disabled = !hasSession || !hasAccount || Boolean(autoRefreshTimer);
     $("stopRefreshBtn").disabled = !autoRefreshTimer;
   }
@@ -266,6 +303,44 @@
     if (duplicate) return;
     storedSignalHistory.unshift(entry);
     storedSignalHistory = storedSignalHistory.slice(0, 100);
+    try { localStorage.setItem(historyStorageKey(), JSON.stringify(storedSignalHistory)); } catch { /* browser storage can be disabled */ }
+    renderSignalHistory();
+    void persistSignalHistory(entry);
+  }
+  async function persistSignalHistory(entry) {
+    if (!client || !session?.user?.id || !Number.isFinite(Number(entry.candleTime))) return;
+    const payload = {
+      user_id: session.user.id, symbol: String(entry.symbol), timeframe: String(entry.timeframe),
+      signal: String(entry.signal), setup_score: Number(entry.setupScore || 0),
+      candle_time: new Date(Number(entry.candleTime) * 1000).toISOString(),
+      close: Number(entry.close), ema9: Number(entry.ema9), ema21: Number(entry.ema21),
+      rsi14: Number(entry.rsi), atr14: Number(entry.atr), swing_high: Number(entry.swingHigh),
+      swing_low: Number(entry.swingLow), momentum: Number(entry.momentum),
+      reasons: Array.isArray(entry.reasons) ? entry.reasons : [], invalidation: String(entry.invalidation || "")
+    };
+    const { error } = await client.from("signal_history").insert(payload);
+    if (error && error.code !== "23505") console.warn("Signal history sync unavailable:", error.message);
+  }
+  async function loadRemoteSignalHistory() {
+    if (!client || !session?.user?.id) return;
+    const { data, error } = await client.from("signal_history").select("*")
+      .order("created_at", { ascending: false }).limit(100);
+    if (error) { console.warn("Could not load cloud signal history:", error.message); return; }
+    const remote = (data || []).map(row => ({
+      symbol: row.symbol, timeframe: row.timeframe, signal: row.signal,
+      setupScore: Number(row.setup_score || 0), candleTime: Math.floor(Date.parse(row.candle_time) / 1000),
+      close: Number(row.close), ema9: Number(row.ema9), ema21: Number(row.ema21),
+      rsi: Number(row.rsi14), atr: Number(row.atr14), swingHigh: Number(row.swing_high),
+      swingLow: Number(row.swing_low), momentum: Number(row.momentum),
+      reasons: Array.isArray(row.reasons) ? row.reasons : [], invalidation: row.invalidation || "",
+      timestamp: row.created_at
+    }));
+    const merged = new Map();
+    for (const item of [...storedSignalHistory, ...remote]) {
+      const key = [item.symbol, item.timeframe, item.candleTime].join("|");
+      if (!merged.has(key)) merged.set(key, item);
+    }
+    storedSignalHistory = [...merged.values()].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 100);
     try { localStorage.setItem(historyStorageKey(), JSON.stringify(storedSignalHistory)); } catch { /* browser storage can be disabled */ }
     renderSignalHistory();
   }
@@ -330,6 +405,7 @@
     const { data } = await client.auth.getSession();
     session = data.session;
     loadSignalHistory();
+    void loadRemoteSignalHistory();
     if (session) setStatus("mainStatus", "Signed in as " + (session.user.email || "ScalpingBot user") + ". Checking cTrader connection…", "good");
     else setStatus("mainStatus", "You are not signed in. Sign in to ScalpingBot first; this page will not ask for your cTrader password.", "warn");
     await loadStatus();
@@ -340,6 +416,7 @@
       if (previousUserId !== nextUserId) {
         stopAutoRefresh();
         loadSignalHistory();
+        void loadRemoteSignalHistory();
         lastAccountInfo = null;
       }
       void loadStatus();
@@ -412,10 +489,31 @@
     try {
       const symbol = $("symbolInput").value.trim();
       const timeframe = $("timeframeSelect").value;
-      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 100 });
+      const snapshotTime = Date.now();
+      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 150, snapshotTime });
       const market = result.market;
       lastCandles = market.candles || [];
-      lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString() };
+      contextCandles = {};
+      const contextPlan = { M1: ["M5", "M15", "H1", "H4"], M5: ["M15", "H1", "H4"], M15: ["H1", "H4"], M30: ["H1", "H4"], H1: ["H4"] };
+      const requestedContexts = contextPlan[timeframe] || [];
+      const contextFailures = [];
+      for (const contextTf of requestedContexts) {
+        try {
+          const contextResult = await api("market-data", { accountId: selectedAccount(), symbol, timeframe: contextTf, count: 100, snapshotTime });
+          contextCandles[contextTf] = contextResult.market?.candles || [];
+        } catch (contextError) {
+          contextFailures.push(contextTf + ": " + (contextError.message || "unavailable"));
+        }
+      }
+      if (requestedContexts.length && Object.keys(contextCandles).length) {
+        setStatus("contextStatus", "Synchronized context loaded: " + Object.entries(contextCandles).map(([tf, rows]) => tf + " (" + rows.length + " candles)").join(" · ") +
+          (contextFailures.length ? ". Missing: " + contextFailures.join("; ") : "."), contextFailures.length ? "warn" : "good");
+      } else if (requestedContexts.length) {
+        setStatus("contextStatus", "Higher-timeframe context unavailable. Analysis will be single-timeframe until those feeds respond.", "warn");
+      } else {
+        setStatus("contextStatus", "No higher supported context timeframe is configured for this selection.", "warn");
+      }
+      lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString(), snapshotTime: market.snapshotTime || snapshotTime };
       $("retrievedMetric").textContent = new Date(lastMarketMeta.retrievedAt).toLocaleTimeString();
       const body = $("candlesBody");
       body.replaceChildren();
@@ -560,49 +658,76 @@
     return 100 - (100 / (1 + avgGain / avgLoss));
   }
   function analyzeCandles({ record = true, quiet = false } = {}) {
-    const closes = lastCandles.map(c => Number(c.close)).filter(Number.isFinite);
-    if (closes.length < 25) {
-      if (!quiet) setStatus("signalStatus", "Fetch at least 25 valid candles before analysis.", "warn");
+    if (!window.ScalpingBotV2?.analyze) {
+      if (!quiet) setStatus("signalStatus", "ScalpingBot 2.0 analysis engine did not load. Refresh the page and try again.", "bad");
       return null;
     }
-    const ema9 = ema(closes.slice(-Math.min(closes.length, 60)), 9);
-    const ema21 = ema(closes.slice(-Math.min(closes.length, 100)), 21);
-    const current = closes[closes.length - 1];
-    const previous = closes[closes.length - 2];
-    const rsi14 = rsi(closes, 14);
-    const reasons = [];
-    const bullishTrend = ema9 > ema21;
-    const bearishTrend = ema9 < ema21;
-    if (bullishTrend) reasons.push("EMA 9 is above EMA 21, indicating short-term upward momentum.");
-    else if (bearishTrend) reasons.push("EMA 9 is below EMA 21, indicating short-term downward momentum.");
-    else reasons.push("EMA 9 and EMA 21 are equal or nearly aligned, so trend direction is unclear.");
-    if (current > ema9) reasons.push("Latest close is above EMA 9.");
-    else if (current < ema9) reasons.push("Latest close is below EMA 9.");
-    else reasons.push("Latest close is at EMA 9.");
-    if (rsi14 >= 55 && rsi14 < 70) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", supporting bullish momentum without reaching the 70 overbought threshold.");
-    else if (rsi14 > 30 && rsi14 <= 45) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", supporting bearish momentum without dropping below the 30 oversold threshold.");
-    else if (rsi14 >= 70) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", in a commonly watched overbought zone; avoid treating this alone as a sell signal.");
-    else if (rsi14 <= 30) reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", in a commonly watched oversold zone; avoid treating this alone as a buy signal.");
-    else reasons.push("RSI 14 is " + rsi14.toFixed(1) + ", in a middle zone that does not strongly confirm either direction.");
-    let signal = "NEUTRAL";
-    if (bullishTrend && current > ema9 && rsi14 >= 55 && rsi14 < 70) signal = "BUY";
-    else if (bearishTrend && current < ema9 && rsi14 <= 45 && rsi14 > 30) signal = "SELL";
-    if (previous === current) reasons.push("The latest close is unchanged from the prior candle.");
-    reasons.push("Rule: BUY requires EMA 9 > EMA 21, close > EMA 9, and RSI 14 between 55 and 70. SELL requires the opposite trend/price conditions and RSI between 30 and 45. Otherwise the result is NEUTRAL.");
-    $("signalValue").textContent = signal;
-    $("signalClose").textContent = current.toFixed(5);
-    $("signalEma").textContent = ema9.toFixed(5) + " / " + ema21.toFixed(5);
-    $("signalRsi").textContent = rsi14.toFixed(1);
+    const analysis = window.ScalpingBotV2.analyze(lastCandles, {
+      timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value,
+      context: contextCandles,
+      now: lastMarketMeta.snapshotTime || Date.now()
+    });
+    if (analysis.candlesUsed < 40) {
+      if (!quiet) setStatus("signalStatus", "Waiting for at least 40 completed candles. The forming candle is excluded.", "warn");
+      return null;
+    }
+    const symbol = lastMarketMeta.symbol || $("symbolInput").value.trim();
+    const timeframe = lastMarketMeta.timeframe || $("timeframeSelect").value;
+    $("signalValue").textContent = analysis.signal;
+    $("signalClose").textContent = Number(analysis.close).toFixed(5);
+    $("signalEma").textContent = Number(analysis.ema9).toFixed(5) + " / " + Number(analysis.ema21).toFixed(5);
+    $("signalRsi").textContent = Number(analysis.rsi).toFixed(1);
+    const reasons = [...analysis.reasons, "Invalidation: " + analysis.invalidation];
     const list = $("signalReasons");
     list.replaceChildren();
     for (const reason of reasons) { const li = document.createElement("li"); li.textContent = reason; list.appendChild(li); }
     $("signalMetrics").classList.remove("ct-hidden");
-    setStatus("signalStatus", signal + " signal generated from " + closes.length + " retrieved candles. This is an indicator-based observation, not a guaranteed outcome.", signal === "NEUTRAL" ? "warn" : "good");
-    const candleTime = Number(lastCandles[lastCandles.length - 1].time);
-    const result = { signal, symbol: lastMarketMeta.symbol || $("symbolInput").value.trim(), timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value, candleTime, close: current, ema9, ema21, rsi: rsi14, reasons, timestamp: new Date().toISOString() };
+    setStatus("signalStatus", analysis.signal + " · setup score " + analysis.setupScore + "/100 · " +
+      analysis.candlesUsed + " completed " + timeframe + " candles. Score is confluence, not a win probability.",
+      analysis.signal === "WAIT" ? "warn" : "good");
+    const result = { ...analysis, symbol, timeframe, timestamp: new Date().toISOString() };
     if (record) saveSignalHistory(result);
     return result;
   }
+  $("runBacktestBtn").addEventListener("click", () => {
+    if (!window.ScalpingBotBacktest?.run) {
+      setStatus("backtestStatus", "The backtest module did not load. Refresh and try again.", "bad");
+      return;
+    }
+    try {
+      const result = window.ScalpingBotBacktest.run(lastCandles, {
+        timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value,
+        spread: Number($("btSpread").value),
+        commission: Number($("btCommission").value),
+        slippage: Number($("btSlippage").value),
+        maxHoldBars: Number($("btHoldBars").value),
+        riskAtr: 1.5,
+        rewardRisk: 2
+      });
+      $("btTrades").textContent = String(result.tradeCount);
+      $("btWinRate").textContent = result.winRate.toFixed(1) + "%";
+      $("btProfitFactor").textContent = result.profitFactor == null ? "∞" : result.profitFactor.toFixed(2);
+      $("btExpectancy").textContent = result.expectancy.toPrecision(5);
+      $("btNet").textContent = result.netTotal.toPrecision(6);
+      $("btDrawdown").textContent = result.maxDrawdownR.toFixed(2) + "R";
+      const body = $("backtestRows");
+      body.replaceChildren();
+      for (const trade of result.trades.slice(-15).reverse()) {
+        const tr = document.createElement("tr");
+        const vals = [trade.direction, Number(trade.entry).toPrecision(6), Number(trade.exit).toPrecision(6), trade.exitReason, Number(trade.net).toPrecision(5), Number(trade.netR).toFixed(2)];
+        for (const value of vals) { const td = document.createElement("td"); td.textContent = value; tr.appendChild(td); }
+        body.appendChild(tr);
+      }
+      if (!result.trades.length) {
+        const tr = document.createElement("tr"), td = document.createElement("td");
+        td.colSpan = 6; td.textContent = "No qualifying BUY/SELL setups were found in this candle sample.";
+        tr.appendChild(td); body.appendChild(tr);
+      }
+      setStatus("backtestStatus", "Completed " + result.tradeCount + " non-overlapping historical trade(s). Net result and metrics include the entered costs. No broker orders were sent.", "good");
+    } catch (error) {
+      setStatus("backtestStatus", error.message || "Backtest failed.", "bad");
+    }
+  });
   $("analyzeBtn").addEventListener("click", () => { analyzeCandles({ record: true, quiet: false }); });
 
   function updateRiskCalculator() {
@@ -650,11 +775,19 @@
       updateRiskCalculator();
     });
   });
-  $("clearHistoryBtn").addEventListener("click", () => {
-    if (!confirm("Clear the signal history saved in this browser for this ScalpingBot account?")) return;
+  $("clearHistoryBtn").addEventListener("click", async () => {
+    if (!confirm("Permanently clear this ScalpingBot account's saved signal history from the cloud and this browser?")) return;
+    if (client && session?.user?.id) {
+      const { error } = await client.from("signal_history").delete().eq("user_id", session.user.id);
+      if (error) {
+        alert("Cloud history was not cleared. The database migration may not be installed yet. " + error.message);
+        return;
+      }
+    }
     storedSignalHistory = [];
     try { localStorage.removeItem(historyStorageKey()); } catch { /* storage can be disabled */ }
     renderSignalHistory();
+    setStatus("signalStatus", "Signal history cleared for this signed-in account.", "good");
   });
 
   $("disconnectBtn").addEventListener("click", async () => {

@@ -260,13 +260,14 @@ async function accountInfo(accessToken: string, accountId: string) {
     };
   });
 }
-async function readMarketData(accessToken: string, accountId: string, rawSymbol: string, timeframe: string, count: number) {
-  const periods: Record<string, number> = { M1: 1, M5: 5, M15: 7 };
+async function readMarketData(accessToken: string, accountId: string, rawSymbol: string, timeframe: string, count: number, snapshotTime: number) {
+  const periods: Record<string, number> = { M1: 1, M5: 5, M15: 7, M30: 8, H1: 9, H4: 10 };
   const period = periods[timeframe];
-  if (!period) throw new Error("Choose M1, M5, or M15.");
+  if (!period) throw new Error("Choose M1, M5, M15, M30, H1, or H4.");
   const wanted = normalizeSymbol(rawSymbol);
   if (!wanted || wanted.length < 6 || wanted.length > 12) throw new Error("Enter a valid symbol such as EUR/USD.");
   const safeCount = Math.min(250, Math.max(60, Math.trunc(count || 100)));
+  const safeSnapshotTime = Number.isSafeInteger(snapshotTime) && snapshotTime > 0 && snapshotTime <= Date.now() + 5000 ? snapshotTime : Date.now();
   return await connectAccount(accessToken, accountId, async (ws) => {
     const symbolsRes = await sendAndWait(ws, 2114, { ctidTraderAccountId: Number(accountId) }, 2115);
     const symbols = symbolsRes.payload?.symbol || [];
@@ -277,7 +278,7 @@ async function readMarketData(accessToken: string, accountId: string, rawSymbol:
       symbolId: Number(symbol.symbolId),
       period,
       count: safeCount,
-      toTimestamp: Date.now(),
+      toTimestamp: safeSnapshotTime,
     }, 2138, 20000);
     const bars = barsRes.payload?.trendbar || [];
     if (!Array.isArray(bars)) throw new Error("cTrader returned an unexpected candle response.");
@@ -305,6 +306,7 @@ async function readMarketData(accessToken: string, accountId: string, rawSymbol:
       symbolId: String(symbol.symbolId),
       timeframe,
       retrievedAt: new Date().toISOString(),
+      snapshotTime: safeSnapshotTime,
       candleCount: candles.length,
       candles,
     };
@@ -429,6 +431,7 @@ Deno.serve(async (req: Request) => {
         String(body.symbol || "EUR/USD"),
         String(body.timeframe || "M1").toUpperCase(),
         Number(body.count || 100),
+        Number(body.snapshotTime || Date.now()),
       );
       return json({ ok: true, market: result });
     }
