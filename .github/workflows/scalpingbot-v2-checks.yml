@@ -1,0 +1,25 @@
+name: ScalpingBot v2 checks
+on:
+  push:
+    branches: [main, "upgrade/**"]
+    paths:
+      - "ctrader.html"
+      - "scalpingbot-v2-engine.js"
+      - "tests/check-v2-engine.mjs"
+      - ".github/workflows/scalpingbot-v2-checks.yml"
+  pull_request:
+    paths:
+      - "ctrader.html"
+      - "scalpingbot-v2-engine.js"
+      - "tests/check-v2-engine.mjs"
+      - ".github/workflows/scalpingbot-v2-checks.yml"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tests/check-v2-engine.mjs
+      - run: node tests/check-ctrader.mjs
