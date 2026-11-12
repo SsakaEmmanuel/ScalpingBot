@@ -261,9 +261,9 @@ async function accountInfo(accessToken: string, accountId: string) {
   });
 }
 async function readMarketData(accessToken: string, accountId: string, rawSymbol: string, timeframe: string, count: number) {
-  const periods: Record<string, number> = { M1: 1, M5: 5, M15: 7, M30: 8, H1: 9 };
+  const periods: Record<string, number> = { M1: 1, M5: 5, M15: 7, M30: 8, H1: 9, H4: 10 };
   const period = periods[timeframe];
-  if (!period) throw new Error("Choose M1, M5, M15, M30, or H1.");
+  if (!period) throw new Error("Choose M1, M5, M15, M30, H1, or H4.");
   const wanted = normalizeSymbol(rawSymbol);
   if (!wanted || wanted.length < 6 || wanted.length > 12) throw new Error("Enter a valid symbol such as EUR/USD.");
   const safeCount = Math.min(250, Math.max(60, Math.trunc(count || 100)));
