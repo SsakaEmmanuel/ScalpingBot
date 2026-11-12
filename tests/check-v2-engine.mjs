@@ -25,8 +25,8 @@ assert.ok(result.setupScore >= 0 && result.setupScore <= 100);
 assert.ok(result.reasons.some(x => x.includes("Trend:")));
 assert.match(result.invalidation, /invalidated|No trade/);
 
-const formingOnly = engine.analyze(rising, { timeframe: "M1", now: (rising.at(-1).time + 30) * 1000 });
-assert.equal(formingOnly.candlesUsed, 99, "The still-forming final candle must be excluded");
+const formingOnly = engine.analyze(rising.slice(0, 40), { timeframe: "M1", now: (rising[39].time + 30) * 1000 });
+assert.equal(formingOnly.candlesUsed, 39, "The still-forming final candle must be excluded");
 assert.equal(formingOnly.signal, "WAIT");
 assert.throws(() => engine.analyze(rising, { timeframe: "M2", now }), /Unsupported timeframe/);
 assert.throws(() => engine.analyze({}, { timeframe: "M1", now }), /array/);
