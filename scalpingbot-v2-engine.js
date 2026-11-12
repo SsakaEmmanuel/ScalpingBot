@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  const INTERVAL_SECONDS = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600 };
+  const INTERVAL_SECONDS = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400 };
 
   function average(values) { return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length); }
   function ema(values, period) {
