@@ -31,7 +31,19 @@ assert.equal(formingOnly.signal, "WAIT");
 assert.throws(() => engine.analyze(rising, { timeframe: "M2", now }), /Unsupported timeframe/);
 assert.throws(() => engine.analyze({}, { timeframe: "M1", now }), /array/);
 
+const alignedContext = candles(100, 1, 1_799_970_000);
+const bearishContext = candles(100, -1, 1_799_970_000);
+const aligned = engine.analyze(rising, { timeframe: "M1", now, context: { M5: alignedContext } });
+assert.equal(aligned.contextBiases[0]?.bias, "BULLISH", "Higher timeframe bullish context must be detected");
+const conflict = engine.analyze(rising, { timeframe: "M1", now, context: { M5: bearishContext } });
+assert.equal(conflict.signal, "WAIT", "Conflicting higher timeframe context must block a directional signal");
+
 const html = readFileSync(new URL("../ctrader.html", import.meta.url), "utf8");
+const backend = readFileSync(new URL("../supabase/functions/ctrader-connect/index.ts", import.meta.url), "utf8");
+assert.match(backend, /M30:\s*8/, "cTrader M30 period enum must match the official API");
+assert.match(backend, /H1:\s*9/, "cTrader H1 period enum must match the official API");
+assert.match(html, /contextCandles\[contextTf\]/, "Page must retrieve higher timeframe context");
+assert.match(html, /value="H1"/, "H1 timeframe must be selectable");
 assert.match(html, /scalpingbot-v2-engine\.js/, "cTrader page must load the v2 engine");
 assert.match(html, /ScalpingBotV2\.analyze/, "cTrader analysis must use the v2 engine");
 console.log("ScalpingBot v2 engine checks passed: completed-candle filtering, ATR, scoring, explanations, timeframe validation and page integration.");
