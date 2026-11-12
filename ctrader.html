@@ -455,7 +455,8 @@
     try {
       const symbol = $("symbolInput").value.trim();
       const timeframe = $("timeframeSelect").value;
-      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 150 });
+      const snapshotTime = Date.now();
+      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 150, snapshotTime });
       const market = result.market;
       lastCandles = market.candles || [];
       contextCandles = {};
@@ -464,7 +465,7 @@
       const contextFailures = [];
       for (const contextTf of requestedContexts) {
         try {
-          const contextResult = await api("market-data", { accountId: selectedAccount(), symbol, timeframe: contextTf, count: 100 });
+          const contextResult = await api("market-data", { accountId: selectedAccount(), symbol, timeframe: contextTf, count: 100, snapshotTime });
           contextCandles[contextTf] = contextResult.market?.candles || [];
         } catch (contextError) {
           contextFailures.push(contextTf + ": " + (contextError.message || "unavailable"));
@@ -478,7 +479,7 @@
       } else {
         setStatus("contextStatus", "No higher supported context timeframe is configured for this selection.", "warn");
       }
-      lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString() };
+      lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString(), snapshotTime: market.snapshotTime || snapshotTime };
       $("retrievedMetric").textContent = new Date(lastMarketMeta.retrievedAt).toLocaleTimeString();
       const body = $("candlesBody");
       body.replaceChildren();
@@ -630,7 +631,7 @@
     const analysis = window.ScalpingBotV2.analyze(lastCandles, {
       timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value,
       context: contextCandles,
-      now: Date.now()
+      now: lastMarketMeta.snapshotTime || Date.now()
     });
     if (analysis.candlesUsed < 40) {
       if (!quiet) setStatus("signalStatus", "Waiting for at least 40 completed candles. The forming candle is excluded.", "warn");
