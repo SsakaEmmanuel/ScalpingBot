@@ -35,3 +35,8 @@ drop policy if exists "Users insert own signal history" on public.signal_history
 create policy "Users insert own signal history"
   on public.signal_history for insert to authenticated
   with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users delete own signal history" on public.signal_history;
+create policy "Users delete own signal history"
+  on public.signal_history for delete to authenticated
+  using ((select auth.uid()) = user_id);
