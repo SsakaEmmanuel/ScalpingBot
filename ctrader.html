@@ -459,7 +459,7 @@
       const market = result.market;
       lastCandles = market.candles || [];
       contextCandles = {};
-      const contextPlan = { M1: ["M5", "M15", "H1"], M5: ["M15", "H1"], M15: ["H1"], M30: ["H1"], H1: [] };
+      const contextPlan = { M1: ["M5", "M15", "H1", "H4"], M5: ["M15", "H1", "H4"], M15: ["H1", "H4"], M30: ["H1", "H4"], H1: ["H4"] };
       const requestedContexts = contextPlan[timeframe] || [];
       const contextFailures = [];
       for (const contextTf of requestedContexts) {
@@ -476,7 +476,7 @@
       } else if (requestedContexts.length) {
         setStatus("contextStatus", "Higher-timeframe context unavailable. Analysis will be single-timeframe until those feeds respond.", "warn");
       } else {
-        setStatus("contextStatus", "H1 selected: no higher supported context timeframe is configured.", "warn");
+        setStatus("contextStatus", "No higher supported context timeframe is configured for this selection.", "warn");
       }
       lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString() };
       $("retrievedMetric").textContent = new Date(lastMarketMeta.retrievedAt).toLocaleTimeString();
