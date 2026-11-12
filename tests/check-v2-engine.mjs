@@ -4,14 +4,14 @@ import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const engine = require("../scalpingbot-v2-engine.js");
 
-function candles(count, direction, startTime = 1_800_000_000) {
+function candles(count, direction, startTime = 1_800_000_000, intervalSeconds = 60) {
   const rows = [];
   let price = 1.08;
   for (let i = 0; i < count; i++) {
     price += direction * 0.00012;
     const open = price - direction * 0.00004;
     const close = price + direction * 0.00004;
-    rows.push({ time: startTime + i * 60, open, high: Math.max(open, close) + 0.00008, low: Math.min(open, close) - 0.00008, close });
+    rows.push({ time: startTime + i * intervalSeconds, open, high: Math.max(open, close) + 0.00008, low: Math.min(open, close) - 0.00008, close });
   }
   return rows;
 }
@@ -31,8 +31,8 @@ assert.equal(formingOnly.signal, "WAIT");
 assert.throws(() => engine.analyze(rising, { timeframe: "M2", now }), /Unsupported timeframe/);
 assert.throws(() => engine.analyze({}, { timeframe: "M1", now }), /array/);
 
-const alignedContext = candles(100, 1, 1_799_970_000);
-const bearishContext = candles(100, -1, 1_799_970_000);
+const alignedContext = candles(100, 1, 1_797_000_000, 300);
+const bearishContext = candles(100, -1, 1_797_000_000, 300);
 const aligned = engine.analyze(rising, { timeframe: "M1", now, context: { M5: alignedContext } });
 assert.equal(aligned.contextBiases[0]?.bias, "BULLISH", "Higher timeframe bullish context must be detected");
 const conflict = engine.analyze(rising, { timeframe: "M1", now, context: { M5: bearishContext } });
