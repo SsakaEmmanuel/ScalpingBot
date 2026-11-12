@@ -12,9 +12,9 @@ function bars(count, direction) {
   });
 }
 const result=backtest.run(bars(180,1),{timeframe:"M1",spread:0.00002,commission:0.00001,slippage:0.00001,maxHoldBars:15});
-assert.ok(result.tradeCount>=0);
+assert.ok(result.tradeCount>0, "Synthetic trend sample should produce testable setups");
 assert.equal(result.trades.length,result.tradeCount);
-assert.ok(result.totalCosts>=0);
+assert.ok(result.totalCosts>0, "Configured spread, commission and slippage must be charged");
 assert.ok(result.maxDrawdownR>=0);
 assert.equal(result.assumptions.sameBarStopAndTarget,"Stop is assumed first (conservative)");
 assert.throws(()=>backtest.run([],{}),/80 valid candles/);
