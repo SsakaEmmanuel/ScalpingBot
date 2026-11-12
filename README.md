@@ -81,4 +81,4 @@ The upgrade/scalpingbot-2.0 branch adds a deterministic, read-only analysis engi
 
 Run node tests/check-v2-engine.mjs and node tests/check-ctrader.mjs with Node.js 20+. The v2 workflow runs both checks on relevant pushes and pull requests.
 
-The database migration is in supabase/migrations/20261113000100_add_signal_history.sql. Apply it only after reviewing the branch; it is additive and does not alter cTrader token storage or existing trade tables.
+The additive migration is in supabase/migrations/20261113000100_add_signal_history.sql and has been applied to the linked ScalpingBot Supabase project. It creates only the new signal_history table and its per-user RLS policies; existing cTrader token storage and trade tables are unchanged.
