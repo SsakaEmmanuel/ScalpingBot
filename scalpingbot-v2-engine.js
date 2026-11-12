@@ -85,6 +85,27 @@
     const momentum = last.close - candles[candles.length - 4].close;
     const bullishTrend = ema9 > ema21 && last.close > ema9;
     const bearishTrend = ema9 < ema21 && last.close < ema9;
+    const contextBiases = [];
+    const contextInput = opts.context && typeof opts.context === "object" ? opts.context : {};
+    for (const [contextTf, contextRows] of Object.entries(contextInput)) {
+      const contextInterval = INTERVAL_SECONDS[String(contextTf).toUpperCase()];
+      if (!contextInterval || !Array.isArray(contextRows)) continue;
+      const contextCloses = contextRows
+        .filter(c => Number(c.time) + contextInterval <= nowSeconds)
+        .sort((a, b) => Number(a.time) - Number(b.time))
+        .map(c => Number(c.close)).filter(Number.isFinite);
+      if (contextCloses.length < 30) continue;
+      const fast = ema(contextCloses.slice(-Math.min(contextCloses.length, 80)), 9);
+      const slow = ema(contextCloses.slice(-Math.min(contextCloses.length, 120)), 21);
+      const bias = fast > slow && contextCloses.at(-1) > fast ? "BULLISH"
+        : fast < slow && contextCloses.at(-1) < fast ? "BEARISH" : "NEUTRAL";
+      contextBiases.push({ timeframe: String(contextTf).toUpperCase(), bias, candles: contextCloses.length });
+    }
+    const bullishContexts = contextBiases.filter(x => x.bias === "BULLISH");
+    const bearishContexts = contextBiases.filter(x => x.bias === "BEARISH");
+    const contextConflict = bullishContexts.length > 0 && bearishContexts.length > 0;
+    const contextSupportsBuy = bullishContexts.length > 0 && bearishContexts.length === 0;
+    const contextSupportsSell = bearishContexts.length > 0 && bullishContexts.length === 0;
     const bullishRsi = rsi14 >= 52 && rsi14 < 72;
     const bearishRsi = rsi14 <= 48 && rsi14 > 28;
     const bullishCandle = last.close > last.open;
@@ -102,17 +123,22 @@
     if (bearishSweep || bearishBreak) bear += 1;
     if (bullishCandle) bull += 1;
     if (bearishCandle) bear += 1;
+    if (contextSupportsBuy) bull += 2;
+    if (contextSupportsSell) bear += 2;
 
     const reasons = [];
     reasons.push("Trend: EMA 9 " + (ema9 >= ema21 ? "above" : "below") + " EMA 21; latest completed close " + (last.close >= ema9 ? "above" : "below") + " EMA 9.");
     reasons.push("Momentum: 3-candle change is " + momentum.toPrecision(6) + "; RSI 14 is " + rsi14.toFixed(1) + ".");
     reasons.push("Structure: recent 12-candle high " + swingHigh.toPrecision(7) + ", low " + swingLow.toPrecision(7) + (bullishSweep ? "; bullish liquidity sweep detected." : bearishSweep ? "; bearish liquidity sweep detected." : bullishBreak ? "; close broke above the recent range." : bearishBreak ? "; close broke below the recent range." : "; no confirmed sweep or range break."));
     reasons.push("Volatility: ATR 14 is " + atr14.toPrecision(6) + "; current/typical ATR ratio is " + volatilityRatio.toFixed(2) + ".");
+    if (contextBiases.length) reasons.push("Higher-timeframe alignment: " + contextBiases.map(x => x.timeframe + " " + x.bias).join(", ") + ".");
+    else reasons.push("Higher-timeframe alignment: no confirmed context timeframe was supplied; this analysis is single-timeframe.");
     if (!volatilitySafe) reasons.push("No-trade filter: volatility is unusually compressed/expanded or ATR is unavailable.");
     if (bullishSweep && bearishSweep) reasons.push("Conflicting wick sweep conditions; wait for clearer structure.");
+    if (contextConflict) reasons.push("No-trade filter: higher timeframes disagree with one another.");
 
-    const signal = volatilitySafe && bull >= 5 && bull - bear >= 2 ? "BUY"
-      : volatilitySafe && bear >= 5 && bear - bull >= 2 ? "SELL" : "WAIT";
+    const signal = volatilitySafe && !contextConflict && (!contextBiases.length || contextSupportsBuy) && bull >= 5 && bull - bear >= 2 ? "BUY"
+      : volatilitySafe && !contextConflict && (!contextBiases.length || contextSupportsSell) && bear >= 5 && bear - bull >= 2 ? "SELL" : "WAIT";
     const chosenScore = signal === "BUY" ? bull : signal === "SELL" ? bear : Math.max(bull, bear);
     const setupScore = Math.round(chosenScore / 6 * 100);
     if (signal === "BUY") reasons.push("Confluence: bullish trend, momentum, RSI, structure and candle direction meet the rule threshold.");
@@ -129,7 +155,7 @@
       signal, setupScore, bullishScore: bull, bearishScore: bear, timeframe,
       candleTime: last.time, close: last.close, ema9, ema21, rsi: rsi14, atr: atr14,
       atrPercent: atr14 / last.close * 100, volatilityRatio, swingHigh, swingLow,
-      momentum, candlesUsed: candles.length, reasons, invalidation
+      momentum, candlesUsed: candles.length, contextBiases, reasons, invalidation
     };
   }
 
