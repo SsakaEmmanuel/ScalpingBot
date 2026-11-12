@@ -6,6 +6,8 @@ on:
       - "ctrader.html"
       - "scalpingbot-v2-engine.js"
       - "tests/check-v2-engine.mjs"
+      - "supabase/functions/ctrader-connect/index.ts"
+      - "supabase/migrations/**"
       - ".github/workflows/scalpingbot-v2-checks.yml"
   pull_request:
     paths:
