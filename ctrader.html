@@ -98,7 +98,7 @@
 <div class="ct-row"><button id="loadSymbolsBtn" class="btn outline" type="button" disabled>Load available broker symbols</button></div>
 <div id="symbolsStatus" class="ct-status" role="status" aria-live="polite">Load symbols to see the exact names available on your demo account.</div>
 <label class="ct-field" for="timeframeSelect">Candle timeframe</label>
-<select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option></select>
+<select id="timeframeSelect" class="ct-select"><option value="M1">1 minute (M1)</option><option value="M5">5 minutes (M5)</option><option value="M15">15 minutes (M15)</option><option value="M30">30 minutes (M30)</option><option value="H1">1 hour (H1)</option></select>
 <div class="ct-row"><button id="marketBtn" class="btn primary" type="button" disabled>Fetch demo candles</button><button id="csvBtn" class="btn outline" type="button" disabled>Export candles CSV</button></div>
 <div class="ct-row">
   <label style="flex:1;min-width:150px"><span class="ct-field">Auto-refresh interval</span>
@@ -108,6 +108,7 @@
 <div class="ct-row"><button id="startRefreshBtn" class="btn outline" type="button" disabled>Start auto-refresh</button><button id="stopRefreshBtn" class="btn outline" type="button" disabled>Stop auto-refresh</button></div>
 <div id="autoRefreshStatus" class="ct-status" role="status" aria-live="polite">Auto-refresh is off.</div>
 <div id="marketStatus" class="ct-status" role="status" aria-live="polite">No cTrader candles fetched yet.</div>
+<div id="contextStatus" class="ct-status warn" role="status" aria-live="polite">Higher-timeframe context has not been fetched yet.</div>
 <div class="ct-info">
 <div class="ct-metric"><span>Source</span><strong>cTrader API</strong></div>
 <div class="ct-metric"><span>Last retrieved</span><strong id="retrievedMetric">—</strong></div>
@@ -191,6 +192,7 @@
   let session = null;
   let linkedAccounts = [];
   let lastCandles = [];
+  let contextCandles = {};
   let lastMarketMeta = { symbol: "EUR/USD", timeframe: "M1", retrievedAt: null };
   let autoRefreshTimer = null;
   let isFetchingCandles = false;
@@ -453,9 +455,29 @@
     try {
       const symbol = $("symbolInput").value.trim();
       const timeframe = $("timeframeSelect").value;
-      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 100 });
+      const result = await api("market-data", { accountId: selectedAccount(), symbol, timeframe, count: 150 });
       const market = result.market;
       lastCandles = market.candles || [];
+      contextCandles = {};
+      const contextPlan = { M1: ["M5", "M15", "H1"], M5: ["M15", "H1"], M15: ["H1"], M30: ["H1"], H1: [] };
+      const requestedContexts = contextPlan[timeframe] || [];
+      const contextFailures = [];
+      for (const contextTf of requestedContexts) {
+        try {
+          const contextResult = await api("market-data", { accountId: selectedAccount(), symbol, timeframe: contextTf, count: 100 });
+          contextCandles[contextTf] = contextResult.market?.candles || [];
+        } catch (contextError) {
+          contextFailures.push(contextTf + ": " + (contextError.message || "unavailable"));
+        }
+      }
+      if (requestedContexts.length && Object.keys(contextCandles).length) {
+        setStatus("contextStatus", "Synchronized context loaded: " + Object.entries(contextCandles).map(([tf, rows]) => tf + " (" + rows.length + " candles)").join(" · ") +
+          (contextFailures.length ? ". Missing: " + contextFailures.join("; ") : "."), contextFailures.length ? "warn" : "good");
+      } else if (requestedContexts.length) {
+        setStatus("contextStatus", "Higher-timeframe context unavailable. Analysis will be single-timeframe until those feeds respond.", "warn");
+      } else {
+        setStatus("contextStatus", "H1 selected: no higher supported context timeframe is configured.", "warn");
+      }
       lastMarketMeta = { symbol: market.symbol || symbol, timeframe, retrievedAt: market.retrievedAt || new Date().toISOString() };
       $("retrievedMetric").textContent = new Date(lastMarketMeta.retrievedAt).toLocaleTimeString();
       const body = $("candlesBody");
@@ -607,6 +629,7 @@
     }
     const analysis = window.ScalpingBotV2.analyze(lastCandles, {
       timeframe: lastMarketMeta.timeframe || $("timeframeSelect").value,
+      context: contextCandles,
       now: Date.now()
     });
     if (analysis.candlesUsed < 40) {
